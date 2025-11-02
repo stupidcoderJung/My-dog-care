@@ -17,3 +17,7 @@
 
 
   
+## 제한사항
+
+ - 영상이미지를 그대로 전송해서 쓸 수 있었던 transformers 페키지와 다르게 gguf를 활용하여, lamma cpp 혹은 ollama 서빙은 video 를 현재 지원하지 않음.=
+ - 
