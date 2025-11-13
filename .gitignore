@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+
+# Xcode
+build/
+DerivedData/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xccheckout
+*.xcuserstate
+*.xcscmblueprint
+xcuserdata/
+project.xcworkspace/xcuserdata/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.pins
+Package.resolved
+
+# Debug symbols
+*.dSYM
+*.dSYM.zip
+
+# Playgrounds
+timeline.xctimeline
+*.playground
