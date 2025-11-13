@@ -1,11 +1,30 @@
-# PupHealth-RT: 반려견 건강 실시간 추적
+# MyDogCare
 
-## NVDINOv2로 프레임 특징/자세를 추출하고, qwen3-vl·LLM으로 요약/설명, SKLearn으로 이상탐지를 수행합니다.
- - 요구사항: Python 3.10+, PyTorch, OpenCV, FastAPI, scikit-learn, qwen3-vl(로컬/서빙), PostgreSQL/TimescaleDB, Redis.
- - 설치: `pip install -r requirements.txt` (선택) `pre-commit install`.
- - 데이터: `data/` 이미지 또는 `CAMERA_URL` 스트림; 주석 도구는 `tools/label/`.
- - 학습: `python train_nvdinov2.py` (특징추출기 미세조정) → `python train_sklearn.py` (이상탐지/분류).
- - 실행: `uvicorn app.main:app --reload`; 대시보드 `/dashboard`; 웹훅 알림은 `ALERT_WEBHOOK` 환경변수.
- - 설정: `config.yaml`에서 모델 경로(qwen3-vl, NVDINOv2), 임계치, 샘플링 주기, 저장소(로컬/DB) 지정.
- - 사용: REST `/ingest`(업로드) `/analyze`(프레임 분석) `/trends`(지표/추세); 한국어 프롬프트 질의 지원.
- - 고지: 본 프로젝트는 의료기기가 아니며, 개인정보는 로컬 우선 처리(옵션: 익명화된 동기화).
+SwiftUI 기반의 반려견 케어 앱 예제 프로젝트입니다. Clerk 인증 SDK를 사용하여 사용자를 인증하고, 간단한 로딩 화면, 메인 페이지, 설정 페이지를 제공합니다.
+
+## 주요 화면
+
+- **LoadingView**: Clerk 세션을 복원하거나 초기화할 때 표시되는 로딩 화면.
+- **SignInView**: 이메일과 비밀번호로 Clerk 계정에 로그인할 수 있는 화면.
+- **MainView**: 오늘의 일정과 활동 요약을 보여주는 메인 대시보드.
+- **SettingsView**: 계정 정보, 기본 설정, 로그아웃 기능을 제공.
+
+## Clerk 설정
+
+1. [Clerk Dashboard](https://dashboard.clerk.com) 에서 iOS 애플리케이션을 생성하고 Publishable Key를 발급받습니다.
+2. `MyDogCare/Services/ClerkAuthService.swift` 파일에서 `YOUR_PUBLISHABLE_KEY` 값을 실제 Publishable Key로 교체합니다.
+3. Xcode에서 프로젝트를 열고 `Signing & Capabilities`에서 팀과 번들 식별자를 설정합니다.
+4. 시뮬레이터 또는 기기에서 실행하면, 앱 시작 시 Clerk가 세션을 초기화하고 로그인 화면이 나타납니다.
+
+## Swift Package Manager
+
+프로젝트는 Clerk iOS SDK를 Swift Package Manager 의존성으로 사용하도록 설정되어 있습니다. Xcode 14 이상에서 프로젝트를 열면 패키지가 자동으로 받아집니다.
+
+## 빌드 대상
+
+- iOS 16.0 이상
+
+## 참고
+
+- 이 프로젝트는 예시 목적의 UI와 더미 데이터를 포함하고 있습니다.
+- 실제 서비스에 사용할 때에는 알림, 데이터 저장 로직 등을 요구사항에 맞게 확장하세요.
