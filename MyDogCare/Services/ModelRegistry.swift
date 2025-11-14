@@ -106,6 +106,30 @@ final class ModelRegistry: ObservableObject {
         }
     }
 
+    var isVisionPipelineReady: Bool {
+        visionResources() != nil
+    }
+
+    func visionResources() -> (context: LlamaContext, projector: MultimodalProjector)? {
+        guard
+            let textDescriptor = descriptors.first(where: {
+                if case .llamaContext = $0.loadMode { return true }
+                return false
+            }),
+            let projectorDescriptor = descriptors.first(where: {
+                if case .mmproj = $0.loadMode { return true }
+                return false
+            }),
+            let textResource = resources[textDescriptor.id],
+            let projectorResource = resources[projectorDescriptor.id],
+            case let .llama(context) = textResource,
+            case let .projector(projector) = projectorResource
+        else {
+            return nil
+        }
+        return (context, projector)
+    }
+
     private func loadModel(for descriptor: Descriptor) async {
         updateStatus(for: descriptor) { $0.state = .loading }
 

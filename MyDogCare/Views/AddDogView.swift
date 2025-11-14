@@ -6,6 +6,7 @@ import UIKit
 struct AddDogView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
+    @EnvironmentObject private var modelRegistry: ModelRegistry
     @State private var name: String = ""
     @State private var breed: String = ""
     @State private var selectedImage: UIImage?
@@ -18,6 +19,11 @@ struct AddDogView: View {
     @State private var isCameraUnavailableAlertPresented = false
     @State private var saveErrorMessage: String?
     @State private var isShowingSaveError = false
+    @State private var aiResponse: String?
+    @State private var aiErrorMessage: String?
+    @State private var isSendingToAI = false
+    @State private var aiEmbedding: Data?
+    private let aiImageMaxDimension: CGFloat = 256
     @FocusState private var focusedField: Field?
 
     enum Field: Hashable {
@@ -49,7 +55,7 @@ struct AddDogView: View {
                             .frame(height: 200)
                             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                             .overlay(alignment: .bottomTrailing) {
-                                Text("1/10 크기로 압축됨")
+                                Text("AI용 \(Int(aiImageMaxDimension))px로 압축됨")
                                     .font(.caption2)
                                     .padding(6)
                                     .background(.thinMaterial, in: Capsule())
@@ -86,6 +92,41 @@ struct AddDogView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(isProcessingImage)
+
+                    Button {
+                        sendImageToAI()
+                    } label: {
+                        Label("AI에게 전달하기", systemImage: "sparkles")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(!canSendToAI)
+
+                    if !modelRegistry.isVisionPipelineReady {
+                        Label("로컬 AI 모델을 준비하는 중이에요.", systemImage: "hourglass")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    if isSendingToAI {
+                        ProgressView("AI 분석 중…")
+                    } else if let aiResponse {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("AI 응답")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(aiResponse)
+                                .font(.body)
+                                .multilineTextAlignment(.leading)
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+                    } else if let aiErrorMessage {
+                        Text(aiErrorMessage)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -149,6 +190,17 @@ struct AddDogView: View {
         !isProcessingImage
     }
 
+    private var canSendToAI: Bool {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedBreed = breed.trimmingCharacters(in: .whitespacesAndNewlines)
+        return modelRegistry.isVisionPipelineReady &&
+        !trimmedName.isEmpty &&
+        !trimmedBreed.isEmpty &&
+        compressedImageData != nil &&
+        !isProcessingImage &&
+        !isSendingToAI
+    }
+
     private func save() {
         guard selectedImage != nil,
               let imageData = compressedImageData else { return }
@@ -160,12 +212,77 @@ struct AddDogView: View {
             dog.breed = breed.trimmingCharacters(in: .whitespacesAndNewlines)
             dog.photoId = filename
             dog.createdAt = Date()
+            if let aiResponse {
+                dog.aiDescription = aiResponse.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            if let aiEmbedding {
+                dog.aiEmbedding = aiEmbedding
+            } else {
+                dog.aiEmbedding = imageData
+            }
 
             try viewContext.save()
             dismiss()
         } catch {
             saveErrorMessage = "강아지 정보를 저장하는 중 문제가 발생했습니다. 다시 시도해 주세요."
             isShowingSaveError = true
+        }
+    }
+
+    private func sendImageToAI() {
+        guard let imageData = compressedImageData else { return }
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedBreed = breed.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmedName.isEmpty, !trimmedBreed.isEmpty else {
+            aiErrorMessage = "이름과 견종을 입력해 주세요."
+            return
+        }
+
+        guard let resources = modelRegistry.visionResources() else {
+            aiErrorMessage = "AI 모델이 아직 준비되지 않았어요."
+            return
+        }
+
+        let prompt = """
+        <|im_start|>system
+        You are a helpful assistant who only describes the dog's visual appearance in natural Korean sentences, using at most 50 English words.
+        <|im_end|>
+        <|im_start|>user
+        this is my dog \(trimmedName) (\(trimmedBreed)). Based on the images, describe my dog's appearance in 50 words, mention \(trimmedName) exactly once, and do not invent unseen facts.
+        <__media__>
+        <|im_end|>
+        <|im_start|>assistant
+        """
+
+        #if DEBUG
+        print("[AI Prompt] \(prompt)")
+        #endif
+
+        isSendingToAI = true
+        aiResponse = nil
+        aiErrorMessage = nil
+        aiEmbedding = nil
+
+        Task {
+            do {
+                let response = try await resources.context.generateVisionResponse(
+                    prompt: prompt,
+                    imageData: [imageData],
+                    projector: resources.projector,
+                    maxTokens: 160
+                )
+                await MainActor.run {
+                    aiResponse = response.text
+                    aiEmbedding = response.embedding
+                    isSendingToAI = false
+                }
+            } catch {
+                await MainActor.run {
+                    aiErrorMessage = error.localizedDescription
+                    isSendingToAI = false
+                }
+            }
         }
     }
 
@@ -186,14 +303,24 @@ struct AddDogView: View {
     }
 
     private func applyImage(_ image: UIImage) {
-        let scale: CGFloat = 0.1
-        let resized = image.resized(by: scale) ?? image
+        let resized = image.resizedToFit(maxDimension: aiImageMaxDimension) ?? image
         selectedImage = resized
-        compressedImageData = resized.jpegData(compressionQuality: 0.8)
+        compressedImageData = resized.jpegData(compressionQuality: 0.4)
+        aiResponse = nil
+        aiErrorMessage = nil
+        aiEmbedding = nil
     }
 }
 
 private extension UIImage {
+    func resizedToFit(maxDimension: CGFloat) -> UIImage? {
+        guard maxDimension > 0 else { return nil }
+        let longerSide = max(size.width, size.height)
+        guard longerSide > maxDimension else { return self }
+        let scale = maxDimension / longerSide
+        return resized(by: scale)
+    }
+
     func resized(by scale: CGFloat) -> UIImage? {
         let safeScale = max(min(scale, 1.0), 0.01)
         let newSize = CGSize(
