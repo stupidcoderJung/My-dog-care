@@ -1,7 +1,14 @@
 import SwiftUI
 
 struct SettingsView: View {
+    enum DisplayMode {
+        case embedded
+        case modal
+    }
+
     let session: SignedInSession
+    var displayMode: DisplayMode = .embedded
+
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var authViewModel: AuthViewModel
 
@@ -22,6 +29,14 @@ struct SettingsView: View {
                     }
                 }
 
+                Section(header: Text("내 강아지")) {
+                    NavigationLink {
+                        DogListView()
+                    } label: {
+                        Label("내 강아지 관리", systemImage: "pawprint")
+                    }
+                }
+
                 Section(header: Text("Preferences")) {
                     Toggle(isOn: .constant(true)) {
                         Label("Daily summary notifications", systemImage: "bell.badge")
@@ -35,7 +50,9 @@ struct SettingsView: View {
                     Button(role: .destructive) {
                         Task {
                             await authViewModel.signOut()
-                            dismiss()
+                            if displayMode == .modal {
+                                await MainActor.run { dismiss() }
+                            }
                         }
                     } label: {
                         Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
@@ -44,15 +61,22 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Close") { dismiss() }
+                if displayMode == .modal {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("Close") { dismiss() }
+                    }
                 }
             }
         }
     }
 }
 
-#Preview {
+#Preview("Embedded") {
     SettingsView(session: .preview)
+        .environmentObject(AuthViewModel(isPreview: true))
+}
+
+#Preview("Modal") {
+    SettingsView(session: .preview, displayMode: .modal)
         .environmentObject(AuthViewModel(isPreview: true))
 }
