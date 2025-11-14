@@ -27,3 +27,6 @@ Package.resolved
 # Playgrounds
 timeline.xctimeline
 *.playground
+
+# External frameworks bundled locally
+llama.xcframework/

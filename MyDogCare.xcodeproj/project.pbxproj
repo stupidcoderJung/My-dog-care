@@ -23,6 +23,12 @@
 		D2E0A7362C9D569B00A1A1A1 /* ImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A7382C9D569B00A1A1A1 /* ImagePicker.swift */; };
 		D2E0A7392C9D5F5200A1A1A1 /* PersistenceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A73B2C9D5F5200A1A1A1 /* PersistenceController.swift */; };
 		D2E0A73A2C9D5F5200A1A1A1 /* DogPhotoStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A73C2C9D5F5200A1A1A1 /* DogPhotoStore.swift */; };
+		673CD32C38014CC9996709255C12DB61 /* ModelRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = B59485244961436191C9F1060CFA2E0E /* ModelRegistry.swift */; };
+		F0AC3BD89AFC4F86A55D6D5AEF643C10 /* LibLlama.swift in Sources */ = {isa = PBXBuildFile; fileRef = 499FC8AFC6F44CD889F2C858B95EA301 /* LibLlama.swift */; };
+		59C0837D751648FBA93D1C7154277E2B /* llama.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 97B7EBEA95824C5194AB0EDB82BDDEC4 /* llama.xcframework */; };
+		D8ABBFAA5B41468AB97468C6CBF451CD /* llama.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 97B7EBEA95824C5194AB0EDB82BDDEC4 /* llama.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		5A7F0F6F5CCA47F69CF0356448664A4C /* Qwen3-VL-2B-Instruct-UD-IQ3_XXS.gguf in Resources */ = {isa = PBXBuildFile; fileRef = 7D4A10B0E861426F947DD819709692E0 /* Qwen3-VL-2B-Instruct-UD-IQ3_XXS.gguf */; };
+		D16C2583A7A54AEE8E1213B4814DCC0A /* mmproj-Qwen3VL-2B-Instruct-Q8_0.gguf in Resources */ = {isa = PBXBuildFile; fileRef = 1733B8E64A97409FB32A280975CEDC88 /* mmproj-Qwen3VL-2B-Instruct-Q8_0.gguf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -43,6 +49,11 @@
 		D2E0A7382C9D569B00A1A1A1 /* ImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePicker.swift; sourceTree = "<group>"; };
 		D2E0A73B2C9D5F5200A1A1A1 /* PersistenceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceController.swift; sourceTree = "<group>"; };
 		D2E0A73C2C9D5F5200A1A1A1 /* DogPhotoStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DogPhotoStore.swift; sourceTree = "<group>"; };
+		B59485244961436191C9F1060CFA2E0E /* ModelRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelRegistry.swift; sourceTree = "<group>"; };
+		499FC8AFC6F44CD889F2C858B95EA301 /* LibLlama.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LibLlama.swift; path = llama.cpp.swift/LibLlama.swift; sourceTree = SOURCE_ROOT; };
+		97B7EBEA95824C5194AB0EDB82BDDEC4 /* llama.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = llama.xcframework; path = llama.xcframework; sourceTree = SOURCE_ROOT; };
+		7D4A10B0E861426F947DD819709692E0 /* Qwen3-VL-2B-Instruct-UD-IQ3_XXS.gguf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Qwen3-VL-2B-Instruct-UD-IQ3_XXS.gguf"; path = "models/Qwen3-VL-2B-Instruct-UD-IQ3_XXS.gguf"; sourceTree = SOURCE_ROOT; };
+		1733B8E64A97409FB32A280975CEDC88 /* mmproj-Qwen3VL-2B-Instruct-Q8_0.gguf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "mmproj-Qwen3VL-2B-Instruct-Q8_0.gguf"; path = "models/mmproj-Qwen3VL-2B-Instruct-Q8_0.gguf"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -51,6 +62,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A79FE2802EC604F40069D557 /* Clerk in Frameworks */,
+				59C0837D751648FBA93D1C7154277E2B /* llama.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -60,6 +72,7 @@
 		D2E0A7012C9D4C1200A1A1A1 = {
 			isa = PBXGroup;
 			children = (
+				97B7EBEA95824C5194AB0EDB82BDDEC4 /* llama.xcframework */,
 				D2E0A70F2C9D4C5E00A1A1A1 /* MyDogCare */,
 				D2E0A7062C9D4C1200A1A1A1 /* Products */,
 			);
@@ -82,6 +95,7 @@
 				D2E0A72C2C9D4D8300A1A1A1 /* ViewModels */,
 				D2E0A72D2C9D4D8300A1A1A1 /* Services */,
 				D2E0A72E2C9D4D8300A1A1A1 /* Models */,
+				E6F2821D51744610A11CFC6EA418162D /* Model Files */,
 				D2E0A7182C9D4C5E00A1A1A1 /* Assets.xcassets */,
 				D2E0A7192C9D4C5E00A1A1A1 /* Info.plist */,
 			);
@@ -115,8 +129,19 @@
 			children = (
 				D2E0A7172C9D4C5E00A1A1A1 /* ClerkAuthService.swift */,
 				D2E0A73C2C9D5F5200A1A1A1 /* DogPhotoStore.swift */,
+				B59485244961436191C9F1060CFA2E0E /* ModelRegistry.swift */,
+				499FC8AFC6F44CD889F2C858B95EA301 /* LibLlama.swift */,
 			);
 			path = Services;
+			sourceTree = "<group>";
+		};
+		E6F2821D51744610A11CFC6EA418162D /* Model Files */ = {
+			isa = PBXGroup;
+			children = (
+				7D4A10B0E861426F947DD819709692E0 /* Qwen3-VL-2B-Instruct-UD-IQ3_XXS.gguf */,
+				1733B8E64A97409FB32A280975CEDC88 /* mmproj-Qwen3VL-2B-Instruct-Q8_0.gguf */,
+			);
+			name = "Model Files";
 			sourceTree = "<group>";
 		};
 		D2E0A72E2C9D4D8300A1A1A1 /* Models */ = {
@@ -137,6 +162,7 @@
 			buildPhases = (
 				D2E0A6FF2C9D4C1200A1A1A1 /* Sources */,
 				D2E0A7002C9D4C1200A1A1A1 /* Frameworks */,
+				0D92AC0EE7494184AC3F253E36A740A0 /* Embed Frameworks */,
 				D2E0A7032C9D4C1200A1A1A1 /* Resources */,
 			);
 			buildRules = (
@@ -188,10 +214,26 @@
 			buildActionMask = 2147483647;
 			files = (
 				D2E0A7282C9D4D2600A1A1A1 /* Assets.xcassets in Resources */,
+				5A7F0F6F5CCA47F69CF0356448664A4C /* Qwen3-VL-2B-Instruct-UD-IQ3_XXS.gguf in Resources */,
+				D16C2583A7A54AEE8E1213B4814DCC0A /* mmproj-Qwen3VL-2B-Instruct-Q8_0.gguf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		0D92AC0EE7494184AC3F253E36A740A0 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				D8ABBFAA5B41468AB97468C6CBF451CD /* llama.xcframework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		D2E0A6FF2C9D4C1200A1A1A1 /* Sources */ = {
@@ -212,6 +254,8 @@
 				D2E0A7362C9D569B00A1A1A1 /* ImagePicker.swift in Sources */,
 				D2E0A7392C9D5F5200A1A1A1 /* PersistenceController.swift in Sources */,
 				D2E0A73A2C9D5F5200A1A1A1 /* DogPhotoStore.swift in Sources */,
+				673CD32C38014CC9996709255C12DB61 /* ModelRegistry.swift in Sources */,
+				F0AC3BD89AFC4F86A55D6D5AEF643C10 /* LibLlama.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
