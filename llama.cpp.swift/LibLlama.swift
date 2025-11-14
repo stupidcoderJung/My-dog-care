@@ -4,6 +4,14 @@ import llama
 enum LlamaError: Error {
     case couldNotInitializeContext
     case couldNotInitializeProjector
+    case invalidVisionInput
+    case failedToTokenizeVisionPrompt
+    case failedToEvaluateVisionPrompt
+}
+
+struct VisionResponse {
+    let text: String
+    let embedding: Data?
 }
 
 func llama_batch_clear(_ batch: inout llama_batch) {
@@ -67,6 +75,9 @@ actor LlamaContext {
 #if targetEnvironment(simulator)
         model_params.n_gpu_layers = 0
         print("Running on simulator, force use n_gpu_layers = 0")
+#else
+        model_params.n_gpu_layers = Int32.max
+        print("Running on device, offloading all layers to Metal")
 #endif
         let model = llama_model_load_from_file(path, model_params)
         guard let model else {
@@ -166,20 +177,7 @@ actor LlamaContext {
             return new_token_str
         }
 
-        let new_token_cchars = token_to_piece(token: new_token_id)
-        temporary_invalid_cchars.append(contentsOf: new_token_cchars)
-        let new_token_str: String
-        if let string = String(validatingUTF8: temporary_invalid_cchars + [0]) {
-            temporary_invalid_cchars.removeAll()
-            new_token_str = string
-        } else if (0 ..< temporary_invalid_cchars.count).contains(where: {$0 != 0 && String(validatingUTF8: Array(temporary_invalid_cchars.suffix($0)) + [0]) != nil}) {
-            // in this case, at least the suffix of the temporary_invalid_cchars can be interpreted as UTF8 string
-            let string = String(cString: temporary_invalid_cchars + [0])
-            temporary_invalid_cchars.removeAll()
-            new_token_str = string
-        } else {
-            new_token_str = ""
-        }
+        let new_token_str = appendTokenPiece(new_token_id)
         print(new_token_str)
         // tokens_list.append(new_token_id)
 
@@ -341,12 +339,176 @@ actor LlamaContext {
     }
 }
 
+extension LlamaContext {
+    func generateVisionResponse(
+        prompt: String,
+        imageData: [Data],
+        projector: MultimodalProjector,
+        maxTokens: Int32 = 128
+    ) async throws -> VisionResponse {
+        guard !imageData.isEmpty else {
+            throw LlamaError.invalidVisionInput
+        }
+
+        guard let chunks = mtmd_input_chunks_init() else {
+            throw LlamaError.failedToTokenizeVisionPrompt
+        }
+        defer { mtmd_input_chunks_free(chunks) }
+
+        let mmContext = projector.contextPointer
+        var bitmaps: [OpaquePointer?] = []
+        defer {
+            bitmaps.compactMap { $0 }.forEach { mtmd_bitmap_free($0) }
+        }
+        bitmaps.reserveCapacity(imageData.count)
+
+        for data in imageData {
+            let bitmap = data.withUnsafeBytes { buffer -> OpaquePointer? in
+                guard let baseAddress = buffer.bindMemory(to: UInt8.self).baseAddress else {
+                    return nil
+                }
+                return mtmd_helper_bitmap_init_from_buf(mmContext, baseAddress, data.count)
+            }
+            guard let bitmap else {
+                throw LlamaError.invalidVisionInput
+            }
+            bitmaps.append(bitmap)
+        }
+
+        let promptWithMarkers = ensureMarker(in: prompt, count: imageData.count)
+
+        #if DEBUG
+        print("[Vision Prompt] \(promptWithMarkers)")
+        #endif
+
+        let bitmapCount = bitmaps.count
+        try bitmaps.withUnsafeMutableBufferPointer { pointer in
+            try promptWithMarkers.withCString { cString in
+                var text = mtmd_input_text(text: cString, add_special: true, parse_special: true)
+                let result = withUnsafePointer(to: &text) { textPointer in
+                    mtmd_tokenize(
+                        mmContext,
+                        chunks,
+                        textPointer,
+                        pointer.baseAddress,
+                        bitmapCount
+                    )
+                }
+                guard result == 0 else {
+                    throw LlamaError.failedToTokenizeVisionPrompt
+                }
+            }
+        }
+
+        llama_memory_clear(llama_get_memory(context), true)
+        llama_batch_clear(&batch)
+        tokens_list.removeAll()
+        temporary_invalid_cchars.removeAll()
+        n_decode = 0
+
+        var nPast: llama_pos = 0
+        let chunkCount = mtmd_input_chunks_size(chunks)
+        let visionEmbeddingDim = Int(llama_model_n_embd_inp(model))
+        var capturedEmbedding: Data?
+
+        for index in 0..<chunkCount {
+            guard let chunk = mtmd_input_chunks_get(chunks, index) else { continue }
+            let chunkType = mtmd_input_chunk_get_type(chunk)
+            var chunkPast = nPast
+            let isLast = index == chunkCount - 1
+            let evalResult = mtmd_helper_eval_chunk_single(
+                mmContext,
+                context,
+                chunk,
+                nPast,
+                0,
+                Int32(llama_n_batch(context)),
+                isLast,
+                &chunkPast
+            )
+            guard evalResult == 0 else {
+                throw LlamaError.failedToEvaluateVisionPrompt
+            }
+            nPast = chunkPast
+            if chunkType == MTMD_INPUT_CHUNK_TYPE_IMAGE && capturedEmbedding == nil,
+               let embdPointer = mtmd_get_output_embd(mmContext) {
+                let tokenCount = Int(mtmd_input_chunk_get_n_tokens(chunk))
+                let floatCount = tokenCount * visionEmbeddingDim
+                let buffer = UnsafeBufferPointer(start: embdPointer, count: floatCount)
+                capturedEmbedding = Data(buffer: buffer)
+            }
+        }
+
+        n_cur = nPast
+
+        var generated = ""
+        var tokensGenerated: Int32 = 0
+
+        while tokensGenerated < maxTokens {
+            let token = llama_sampler_sample(sampling, context, -1)
+            if llama_vocab_is_eog(vocab, token) {
+                break
+            }
+
+            generated += appendTokenPiece(token)
+
+            llama_batch_clear(&batch)
+            llama_batch_add(&batch, token, nPast, [0], true)
+            nPast += 1
+            n_cur = nPast
+            n_decode += 1
+
+            if llama_decode(context, batch) != 0 {
+                throw LlamaError.failedToEvaluateVisionPrompt
+            }
+
+            tokensGenerated += 1
+        }
+
+        let text = generated.trimmingCharacters(in: .whitespacesAndNewlines)
+        return VisionResponse(text: text, embedding: capturedEmbedding)
+    }
+
+    private func ensureMarker(in prompt: String, count: Int) -> String {
+        guard count > 0 else { return prompt }
+        let marker = String(cString: mtmd_default_marker())
+        let existing = prompt.components(separatedBy: marker).count - 1
+        guard existing < count else { return prompt }
+
+        var updated = prompt
+        for _ in existing..<count {
+            if !updated.hasSuffix("\n") {
+                updated += "\n"
+            }
+            updated += marker
+        }
+        return updated
+    }
+
+    fileprivate func appendTokenPiece(_ token: llama_token) -> String {
+        temporary_invalid_cchars.append(contentsOf: token_to_piece(token: token))
+        if let string = String(validatingUTF8: temporary_invalid_cchars + [0]) {
+            temporary_invalid_cchars.removeAll()
+            return string
+        } else if (0 ..< temporary_invalid_cchars.count).contains(where: { idx in
+            idx != 0 && String(validatingUTF8: Array(temporary_invalid_cchars.suffix(idx)) + [0]) != nil
+        }) {
+            let string = String(cString: temporary_invalid_cchars + [0])
+            temporary_invalid_cchars.removeAll()
+            return string
+        }
+        return ""
+    }
+}
+
 final class MultimodalProjector {
     private let context: OpaquePointer
 
     private init(context: OpaquePointer) {
         self.context = context
     }
+
+    var contextPointer: OpaquePointer { context }
 
     deinit {
         mtmd_free(context)
@@ -356,9 +518,10 @@ final class MultimodalProjector {
         try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 var params = mtmd_context_params_default()
-                params.use_gpu = false
+                params.use_gpu = true
                 params.print_timings = false
                 params.media_marker = mtmd_default_marker()
+                params.n_threads = Int32(max(2, ProcessInfo.processInfo.activeProcessorCount))
 
                 guard let projectorContext = mtmd_init_from_file(mmprojPath, textModelPointer, params) else {
                     continuation.resume(throwing: LlamaError.couldNotInitializeProjector)
@@ -367,6 +530,25 @@ final class MultimodalProjector {
 
                 continuation.resume(returning: MultimodalProjector(context: projectorContext))
             }
+        }
+    }
+}
+
+extension MultimodalProjector: @unchecked Sendable {}
+
+extension LlamaError: LocalizedError {
+    var errorDescription: String? {
+        switch self {
+        case .couldNotInitializeContext:
+            return "텍스트 모델을 초기화할 수 없어요."
+        case .couldNotInitializeProjector:
+            return "멀티모달 projector를 초기화할 수 없어요."
+        case .invalidVisionInput:
+            return "이미지 데이터를 처리할 수 없어요."
+        case .failedToTokenizeVisionPrompt:
+            return "AI 요청을 준비하지 못했어요."
+        case .failedToEvaluateVisionPrompt:
+            return "AI 응답을 생성하지 못했어요."
         }
     }
 }
