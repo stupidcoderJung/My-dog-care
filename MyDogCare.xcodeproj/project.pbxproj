@@ -17,6 +17,12 @@
 		D2E0A7262C9D4D2600A1A1A1 /* AuthViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A7162C9D4C5E00A1A1A1 /* AuthViewModel.swift */; };
 		D2E0A7272C9D4D2600A1A1A1 /* ClerkAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A7172C9D4C5E00A1A1A1 /* ClerkAuthService.swift */; };
 		D2E0A7282C9D4D2600A1A1A1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D2E0A7182C9D4C5E00A1A1A1 /* Assets.xcassets */; };
+		D2E0A7292C9D4D8300A1A1A1 /* MyDogCare.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A7312C9D4D8300A1A1A1 /* MyDogCare.xcdatamodeld */; };
+		D2E0A7332C9D50A400A1A1A1 /* DogListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A7342C9D50A400A1A1A1 /* DogListView.swift */; };
+		D2E0A7352C9D569B00A1A1A1 /* AddDogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A7372C9D569B00A1A1A1 /* AddDogView.swift */; };
+		D2E0A7362C9D569B00A1A1A1 /* ImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A7382C9D569B00A1A1A1 /* ImagePicker.swift */; };
+		D2E0A7392C9D5F5200A1A1A1 /* PersistenceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A73B2C9D5F5200A1A1A1 /* PersistenceController.swift */; };
+		D2E0A73A2C9D5F5200A1A1A1 /* DogPhotoStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A73C2C9D5F5200A1A1A1 /* DogPhotoStore.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -31,6 +37,12 @@
 		D2E0A7172C9D4C5E00A1A1A1 /* ClerkAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClerkAuthService.swift; sourceTree = "<group>"; };
 		D2E0A7182C9D4C5E00A1A1A1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		D2E0A7192C9D4C5E00A1A1A1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		D2E0A7322C9D4D8300A1A1A1 /* MyDogCare.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = MyDogCare.xcdatamodel; sourceTree = "<group>"; };
+		D2E0A7342C9D50A400A1A1A1 /* DogListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DogListView.swift; sourceTree = "<group>"; };
+		D2E0A7372C9D569B00A1A1A1 /* AddDogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddDogView.swift; sourceTree = "<group>"; };
+		D2E0A7382C9D569B00A1A1A1 /* ImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePicker.swift; sourceTree = "<group>"; };
+		D2E0A73B2C9D5F5200A1A1A1 /* PersistenceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceController.swift; sourceTree = "<group>"; };
+		D2E0A73C2C9D5F5200A1A1A1 /* DogPhotoStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DogPhotoStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,6 +81,7 @@
 				D2E0A72B2C9D4D8300A1A1A1 /* Views */,
 				D2E0A72C2C9D4D8300A1A1A1 /* ViewModels */,
 				D2E0A72D2C9D4D8300A1A1A1 /* Services */,
+				D2E0A72E2C9D4D8300A1A1A1 /* Models */,
 				D2E0A7182C9D4C5E00A1A1A1 /* Assets.xcassets */,
 				D2E0A7192C9D4C5E00A1A1A1 /* Info.plist */,
 			);
@@ -79,6 +92,9 @@
 			isa = PBXGroup;
 			children = (
 				D2E0A7122C9D4C5E00A1A1A1 /* LoadingView.swift */,
+				D2E0A7372C9D569B00A1A1A1 /* AddDogView.swift */,
+				D2E0A7382C9D569B00A1A1A1 /* ImagePicker.swift */,
+				D2E0A7342C9D50A400A1A1A1 /* DogListView.swift */,
 				D2E0A7132C9D4C5E00A1A1A1 /* MainView.swift */,
 				D2E0A7142C9D4C5E00A1A1A1 /* SettingsView.swift */,
 				D2E0A7152C9D4C5E00A1A1A1 /* AsyncAvatarView.swift */,
@@ -98,8 +114,18 @@
 			isa = PBXGroup;
 			children = (
 				D2E0A7172C9D4C5E00A1A1A1 /* ClerkAuthService.swift */,
+				D2E0A73C2C9D5F5200A1A1A1 /* DogPhotoStore.swift */,
 			);
 			path = Services;
+			sourceTree = "<group>";
+		};
+		D2E0A72E2C9D4D8300A1A1A1 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				D2E0A7312C9D4D8300A1A1A1 /* MyDogCare.xcdatamodeld */,
+				D2E0A73B2C9D5F5200A1A1A1 /* PersistenceController.swift */,
+			);
+			path = Models;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -180,10 +206,29 @@
 				D2E0A7252C9D4D2600A1A1A1 /* AsyncAvatarView.swift in Sources */,
 				D2E0A7262C9D4D2600A1A1A1 /* AuthViewModel.swift in Sources */,
 				D2E0A7272C9D4D2600A1A1A1 /* ClerkAuthService.swift in Sources */,
+				D2E0A7292C9D4D8300A1A1A1 /* MyDogCare.xcdatamodeld in Sources */,
+				D2E0A7332C9D50A400A1A1A1 /* DogListView.swift in Sources */,
+				D2E0A7352C9D569B00A1A1A1 /* AddDogView.swift in Sources */,
+				D2E0A7362C9D569B00A1A1A1 /* ImagePicker.swift in Sources */,
+				D2E0A7392C9D5F5200A1A1A1 /* PersistenceController.swift in Sources */,
+				D2E0A73A2C9D5F5200A1A1A1 /* DogPhotoStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin XCVersionGroup section */
+		D2E0A7312C9D4D8300A1A1A1 /* MyDogCare.xcdatamodeld */ = {
+			isa = XCVersionGroup;
+			children = (
+				D2E0A7322C9D4D8300A1A1A1 /* MyDogCare.xcdatamodel */,
+			);
+			currentVersion = D2E0A7322C9D4D8300A1A1A1 /* MyDogCare.xcdatamodel */;
+			path = MyDogCare.xcdatamodeld;
+			sourceTree = "<group>";
+			versionGroupType = wrapper.xcdatamodel;
+		};
+/* End XCVersionGroup section */
 
 /* Begin XCBuildConfiguration section */
 		D2E0A7092C9D4C1200A1A1A1 /* Debug */ = {

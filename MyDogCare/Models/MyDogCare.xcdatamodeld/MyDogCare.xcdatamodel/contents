@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1" lastSavedToolsVersion="22119" systemVersion="23G80" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+    <entity name="Dog" representedClassName="Dog" codeGenerationType="class" syncable="YES">
+        <attribute name="name" optional="NO" attributeType="String" syncable="YES"/>
+        <attribute name="breed" optional="NO" attributeType="String" syncable="YES"/>
+        <attribute name="photoId" optional="NO" attributeType="String" syncable="YES"/>
+        <attribute name="createdAt" optional="NO" attributeType="Date" usesScalarValueType="NO" syncable="YES"/>
+        <attribute name="aiDescription" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="aiEmbedding" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES" syncable="YES"/>
+    </entity>
+    <elements>
+        <element name="Dog" positionX="-16" positionY="-16" width="128" height="128"/>
+    </elements>
+</model>
