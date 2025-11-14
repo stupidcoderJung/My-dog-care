@@ -11,6 +11,7 @@ struct SettingsView: View {
 
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var authViewModel: AuthViewModel
+    @EnvironmentObject private var modelRegistry: ModelRegistry
 
     var body: some View {
         NavigationView {
@@ -46,6 +47,28 @@ struct SettingsView: View {
                     }
                 }
 
+                Section(header: Text("로컬 모델")) {
+                    ForEach(modelRegistry.statuses) { status in
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(status.descriptor.displayName)
+                                    .font(.subheadline)
+                                Text(modelStatusSubtitle(for: status))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if status.state == .loading {
+                                ProgressView()
+                            } else {
+                                Image(systemName: status.state.accessorySystemImage)
+                                    .foregroundStyle(stateColor(for: status.state))
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
                 Section {
                     Button(role: .destructive) {
                         Task {
@@ -69,14 +92,36 @@ struct SettingsView: View {
             }
         }
     }
+
+    private func modelStatusSubtitle(for status: ModelRegistry.Status) -> String {
+        switch status.state {
+        case .failed:
+            return status.subtitle
+        default:
+            return "\(status.state.statusText) · \(status.subtitle)"
+        }
+    }
+
+    private func stateColor(for state: ModelRegistry.LoadState) -> Color {
+        switch state {
+        case .loaded:
+            return .green
+        case .failed:
+            return .orange
+        default:
+            return .secondary
+        }
+    }
 }
 
 #Preview("Embedded") {
     SettingsView(session: .preview)
         .environmentObject(AuthViewModel(isPreview: true))
+        .environmentObject(ModelRegistry.preview())
 }
 
 #Preview("Modal") {
     SettingsView(session: .preview, displayMode: .modal)
         .environmentObject(AuthViewModel(isPreview: true))
+        .environmentObject(ModelRegistry.preview())
 }
