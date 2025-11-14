@@ -30,3 +30,6 @@ timeline.xctimeline
 
 # External frameworks bundled locally
 llama.xcframework/
+
+# Local GGUF weights downloaded at runtime
+models/*.gguf
