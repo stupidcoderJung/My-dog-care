@@ -27,3 +27,9 @@ Package.resolved
 # Playgrounds
 timeline.xctimeline
 *.playground
+
+# External frameworks bundled locally
+llama.xcframework/
+
+# Local GGUF weights downloaded at runtime
+models/*.gguf

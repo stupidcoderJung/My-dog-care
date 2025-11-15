@@ -9,6 +9,11 @@ SwiftUI 기반의 반려견 케어 앱 예제 프로젝트입니다. Clerk 인�
 - **MainView**: 오늘의 일정과 활동 요약을 보여주는 메인 대시보드.
 - **SettingsView**: 계정 정보, 기본 설정, 로그아웃 기능을 제공.
 
+## 로컬 LLM / mmproj
+
+앱이 시작하면 `models` 디렉터리에 있는 GGUF 모델과 멀티모달 projector를 자동으로 로드합니다.  
+`llama.xcframework`는 [stupidcoderJung/llama.cpp](https://github.com/stupidcoderJung/llama.cpp) 저장소에서 직접 빌드한 결과물을 가져와 `PROJECT_ROOT/llama.xcframework`에 복사해야 합니다.
+
 ## Clerk 설정
 
 1. [Clerk Dashboard](https://dashboard.clerk.com) 에서 iOS 애플리케이션을 생성하고 Publishable Key를 발급받습니다.

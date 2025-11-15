@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct MyDogCareApp: App {
     @StateObject private var authViewModel = AuthViewModel()
+    @StateObject private var modelRegistry = ModelRegistry()
     private let persistenceController = PersistenceController.shared
     @Environment(\.scenePhase) private var scenePhase
 
@@ -10,8 +11,10 @@ struct MyDogCareApp: App {
         WindowGroup {
             RootView()
                 .environmentObject(authViewModel)
+                .environmentObject(modelRegistry)
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .task {
+                    modelRegistry.ensureModelsLoaded()
                     await authViewModel.initialize()
                 }
         }
