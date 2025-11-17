@@ -443,11 +443,21 @@ extension LlamaContext {
 
         var generated = ""
         var tokensGenerated: Int32 = 0
+        let generationStart = Date()
+        var firstTokenAt: Date?
 
         while tokensGenerated < maxTokens {
             let token = llama_sampler_sample(sampling, context, -1)
             if llama_vocab_is_eog(vocab, token) {
                 break
+            }
+
+            if firstTokenAt == nil {
+                firstTokenAt = Date()
+                #if DEBUG
+                let ttft = firstTokenAt!.timeIntervalSince(generationStart)
+                print(String(format: "[LLM] TTFT: %.3fs", ttft))
+                #endif
             }
 
             generated += appendTokenPiece(token)
@@ -519,7 +529,7 @@ final class MultimodalProjector {
             DispatchQueue.global(qos: .userInitiated).async {
                 var params = mtmd_context_params_default()
                 params.use_gpu = true
-                params.print_timings = false
+                params.print_timings = true
                 params.media_marker = mtmd_default_marker()
                 params.n_threads = Int32(max(2, ProcessInfo.processInfo.activeProcessorCount))
 

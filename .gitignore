@@ -33,3 +33,6 @@ llama.xcframework/
 
 # Local GGUF weights downloaded at runtime
 models/*.gguf
+models/mmproj-SmolVLM-500M-Instruct-Q8_0.gguf
+models/SmolVLM-500M-Instruct-Q8_0.gguf
+MyDogCare/*.gguf
