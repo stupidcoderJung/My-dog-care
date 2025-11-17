@@ -19,7 +19,11 @@ struct DogListView: View {
                 ContentUnavailableView("등록된 강아지가 없어요", systemImage: "pawprint", description: Text("오른쪽 위의 추가 버튼을 눌러 새 강아지를 등록하세요."))
             } else {
                 ForEach(dogs) { dog in
-                    DogRowView(dog: dog)
+                    NavigationLink {
+                        DogDetailView(dog: dog)
+                    } label: {
+                        DogRowView(dog: dog)
+                    }
                 }
                 .onDelete(perform: deleteDogs)
             }

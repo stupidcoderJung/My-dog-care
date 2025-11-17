@@ -23,7 +23,8 @@ struct AddDogView: View {
     @State private var aiErrorMessage: String?
     @State private var isSendingToAI = false
     @State private var aiEmbedding: Data?
-    private let aiImageMaxDimension: CGFloat = 256
+//    private let aiImageMaxDimension: CGFloat = 256
+    private let aiImageMaxDimension: CGFloat = 160
     @FocusState private var focusedField: Field?
 
     enum Field: Hashable {
@@ -246,11 +247,10 @@ struct AddDogView: View {
 
         let prompt = """
         <|im_start|>system
-        You are a helpful assistant who only describes the dog's visual appearance in natural Korean sentences, using at most 50 English words.
+        You describe only the dog's visible appearance in Korean: color, size, fur, ears, eyes, markings, tail. Ignore pose, action, location, background, objects, people. Write 2-3 short sentences, under 100 characters total. Mention the dog's name in quotes and the breed in its own sentence.
         <|im_end|>
         <|im_start|>user
-        this is my dog \(trimmedName) (\(trimmedBreed)). Based on the images, describe my dog's appearance in 50 words, mention \(trimmedName) exactly once, and do not invent unseen facts.
-        <__media__>
+        Describe the dog named '\(trimmedName)'. State the breed '\(trimmedBreed)' in its own sentence. Appearance only (no pose/action/location/background/objects/people), under 100 characters total. <|vision_start|><|image_pad|><|vision_end|>
         <|im_end|>
         <|im_start|>assistant
         """
@@ -270,7 +270,7 @@ struct AddDogView: View {
                     prompt: prompt,
                     imageData: [imageData],
                     projector: resources.projector,
-                    maxTokens: 160
+                    maxTokens: 80
                 )
                 await MainActor.run {
                     aiResponse = response.text
@@ -301,11 +301,10 @@ struct AddDogView: View {
         }
         await MainActor.run { isProcessingImage = false }
     }
-
     private func applyImage(_ image: UIImage) {
         let resized = image.resizedToFit(maxDimension: aiImageMaxDimension) ?? image
         selectedImage = resized
-        compressedImageData = resized.jpegData(compressionQuality: 0.4)
+        compressedImageData = resized.jpegData(compressionQuality: 0.3)
         aiResponse = nil
         aiErrorMessage = nil
         aiEmbedding = nil
