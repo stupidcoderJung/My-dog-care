@@ -24,9 +24,9 @@ struct MainView: View {
                 }
                 .tag(Tab.menu2)
 
-            MenuThreeView()
+            OnAirView()
                 .tabItem {
-                    Label("Menu 3", systemImage: "pawprint")
+                    Label("On Air", systemImage: "video.fill")
                 }
                 .tag(Tab.menu3)
 
@@ -80,28 +80,7 @@ private struct MenuTwoView: View {
     }
 }
 
-private struct MenuThreeView: View {
-    var body: some View {
-        NavigationView {
-            VStack(spacing: 24) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 48))
-                    .foregroundStyle(.tint)
-                Text("Menu 3")
-                    .font(.title.bold())
-                Text("Use this area for quick tips, health insights, or anything else your pup needs.")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-                Spacer()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("Menu 3")
-        }
-    }
-}
+
 
 private struct SettingsTabView: View {
     let session: SignedInSession
