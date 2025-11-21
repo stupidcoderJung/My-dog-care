@@ -69,23 +69,7 @@ struct DogDetailView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Divider()
 
-            if let embeddingText = aiEmbeddingDisplayText {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("토큰화 Embedding")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(embeddingText)
-                        .font(.system(.footnote, design: .monospaced))
-                        .lineLimit(1)
-                        .textSelection(.enabled)
-                }
-            } else {
-                Text("토큰화 Embedding 데이터가 없어요")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-            }
         }
     }
 
@@ -107,13 +91,7 @@ struct DogDetailView: View {
         return DateFormatter.dogDetailFormatter.string(from: createdAt)
     }
 
-    private var aiEmbeddingDisplayText: String? {
-        guard let data = dog.aiEmbedding, !data.isEmpty else { return nil }
-        let base = data.base64EncodedString()
-        guard base.count > 20 else { return base }
-        let index = base.index(base.startIndex, offsetBy: 20)
-        return String(base[..<index]) + "...."
-    }
+
 }
 
 private struct DetailRow: View {

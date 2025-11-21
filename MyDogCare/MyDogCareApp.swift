@@ -3,7 +3,7 @@ import SwiftUI
 @main
 struct MyDogCareApp: App {
     @StateObject private var authViewModel = AuthViewModel()
-    @StateObject private var modelRegistry = ModelRegistry()
+    @StateObject private var visionClient = VisionClient()
     private let persistenceController = PersistenceController.shared
     @Environment(\.scenePhase) private var scenePhase
 
@@ -11,10 +11,10 @@ struct MyDogCareApp: App {
         WindowGroup {
             RootView()
                 .environmentObject(authViewModel)
-                .environmentObject(modelRegistry)
+                .environmentObject(visionClient)
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .task {
-                    modelRegistry.ensureModelsLoaded()
+
                     await authViewModel.initialize()
                 }
         }
