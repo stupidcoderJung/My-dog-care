@@ -7,12 +7,15 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-
 		5FD3C2AB2F1C123400FEDCBA /* DogDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FD3C2AA2F1C123400FEDCBA /* DogDetailView.swift */; };
 		673CD32C38014CC9996709255C12DB61 /* ModelRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = B59485244961436191C9F1060CFA2E0E /* ModelRegistry.swift */; };
-
+		A775EF692ED0385A0030EDB3 /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EF682ED0385A0030EDB3 /* CameraManager.swift */; };
+		A775EF6B2ED038660030EDB3 /* OnAirView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EF6A2ED038660030EDB3 /* OnAirView.swift */; };
+		A775EF6D2ED07C330030EDB3 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EF6C2ED07C330030EDB3 /* ChatView.swift */; };
+		A775EF6F2ED07C4B0030EDB3 /* ChatService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EF6E2ED07C4B0030EDB3 /* ChatService.swift */; };
+		A775EF712ED07CC00030EDB3 /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EF702ED07CC00030EDB3 /* ChatMessage.swift */; };
+		A775EF732ED07CD70030EDB3 /* GraphWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EF722ED07CD70030EDB3 /* GraphWebView.swift */; };
 		A79FE2802EC604F40069D557 /* Clerk in Frameworks */ = {isa = PBXBuildFile; productRef = A79FE27F2EC604F40069D557 /* Clerk */; };
-
 		D2E0A7202C9D4D2600A1A1A1 /* MyDogCareApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A7102C9D4C5E00A1A1A1 /* MyDogCareApp.swift */; };
 		D2E0A7212C9D4D2600A1A1A1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A7112C9D4C5E00A1A1A1 /* ContentView.swift */; };
 		D2E0A7222C9D4D2600A1A1A1 /* LoadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A7122C9D4C5E00A1A1A1 /* LoadingView.swift */; };
@@ -28,7 +31,6 @@
 		D2E0A7362C9D569B00A1A1A1 /* ImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A7382C9D569B00A1A1A1 /* ImagePicker.swift */; };
 		D2E0A7392C9D5F5200A1A1A1 /* PersistenceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A73B2C9D5F5200A1A1A1 /* PersistenceController.swift */; };
 		D2E0A73A2C9D5F5200A1A1A1 /* DogPhotoStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A73C2C9D5F5200A1A1A1 /* DogPhotoStore.swift */; };
-
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -38,7 +40,6 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -46,9 +47,13 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-
 		5FD3C2AA2F1C123400FEDCBA /* DogDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DogDetailView.swift; sourceTree = "<group>"; };
-
+		A775EF682ED0385A0030EDB3 /* CameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraManager.swift; sourceTree = "<group>"; };
+		A775EF6A2ED038660030EDB3 /* OnAirView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnAirView.swift; sourceTree = "<group>"; };
+		A775EF6C2ED07C330030EDB3 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
+		A775EF6E2ED07C4B0030EDB3 /* ChatService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatService.swift; sourceTree = "<group>"; };
+		A775EF702ED07CC00030EDB3 /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
+		A775EF722ED07CD70030EDB3 /* GraphWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GraphWebView.swift; sourceTree = "<group>"; };
 		B59485244961436191C9F1060CFA2E0E /* ModelRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelRegistry.swift; sourceTree = "<group>"; };
 		D2E0A7042C9D4C1200A1A1A1 /* MyDogCare.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyDogCare.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D2E0A7102C9D4C5E00A1A1A1 /* MyDogCareApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyDogCareApp.swift; sourceTree = "<group>"; };
@@ -75,7 +80,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				A79FE2802EC604F40069D557 /* Clerk in Frameworks */,
-
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -85,7 +89,6 @@
 		D2E0A7012C9D4C1200A1A1A1 = {
 			isa = PBXGroup;
 			children = (
-
 				D2E0A70F2C9D4C5E00A1A1A1 /* MyDogCare */,
 				D2E0A7062C9D4C1200A1A1A1 /* Products */,
 			);
@@ -108,7 +111,6 @@
 				D2E0A72C2C9D4D8300A1A1A1 /* ViewModels */,
 				D2E0A72D2C9D4D8300A1A1A1 /* Services */,
 				D2E0A72E2C9D4D8300A1A1A1 /* Models */,
-
 				D2E0A7182C9D4C5E00A1A1A1 /* Assets.xcassets */,
 				D2E0A7192C9D4C5E00A1A1A1 /* Info.plist */,
 			);
@@ -118,6 +120,9 @@
 		D2E0A72B2C9D4D8300A1A1A1 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				A775EF722ED07CD70030EDB3 /* GraphWebView.swift */,
+				A775EF6C2ED07C330030EDB3 /* ChatView.swift */,
+				A775EF6A2ED038660030EDB3 /* OnAirView.swift */,
 				D2E0A7122C9D4C5E00A1A1A1 /* LoadingView.swift */,
 				D2E0A7372C9D569B00A1A1A1 /* AddDogView.swift */,
 				D2E0A7382C9D569B00A1A1A1 /* ImagePicker.swift */,
@@ -141,10 +146,11 @@
 		D2E0A72D2C9D4D8300A1A1A1 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				A775EF6E2ED07C4B0030EDB3 /* ChatService.swift */,
+				A775EF682ED0385A0030EDB3 /* CameraManager.swift */,
 				D2E0A7172C9D4C5E00A1A1A1 /* ClerkAuthService.swift */,
 				D2E0A73C2C9D5F5200A1A1A1 /* DogPhotoStore.swift */,
 				B59485244961436191C9F1060CFA2E0E /* ModelRegistry.swift */,
-
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -152,13 +158,13 @@
 		D2E0A72E2C9D4D8300A1A1A1 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				A775EF702ED07CC00030EDB3 /* ChatMessage.swift */,
 				D2E0A7312C9D4D8300A1A1A1 /* MyDogCare.xcdatamodeld */,
 				D2E0A73B2C9D5F5200A1A1A1 /* PersistenceController.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
 		};
-
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -220,7 +226,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				D2E0A7282C9D4D2600A1A1A1 /* Assets.xcassets in Resources */,
-
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -231,8 +236,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A775EF712ED07CC00030EDB3 /* ChatMessage.swift in Sources */,
+				A775EF6D2ED07C330030EDB3 /* ChatView.swift in Sources */,
 				D2E0A7202C9D4D2600A1A1A1 /* MyDogCareApp.swift in Sources */,
 				D2E0A7212C9D4D2600A1A1A1 /* ContentView.swift in Sources */,
+				A775EF732ED07CD70030EDB3 /* GraphWebView.swift in Sources */,
 				D2E0A7222C9D4D2600A1A1A1 /* LoadingView.swift in Sources */,
 				D2E0A7232C9D4D2600A1A1A1 /* MainView.swift in Sources */,
 				D2E0A7242C9D4D2600A1A1A1 /* SettingsView.swift in Sources */,
@@ -241,13 +249,15 @@
 				D2E0A7272C9D4D2600A1A1A1 /* ClerkAuthService.swift in Sources */,
 				D2E0A7292C9D4D8300A1A1A1 /* MyDogCare.xcdatamodeld in Sources */,
 				D2E0A7332C9D50A400A1A1A1 /* DogListView.swift in Sources */,
+				A775EF6B2ED038660030EDB3 /* OnAirView.swift in Sources */,
 				5FD3C2AB2F1C123400FEDCBA /* DogDetailView.swift in Sources */,
+				A775EF6F2ED07C4B0030EDB3 /* ChatService.swift in Sources */,
 				D2E0A7352C9D569B00A1A1A1 /* AddDogView.swift in Sources */,
 				D2E0A7362C9D569B00A1A1A1 /* ImagePicker.swift in Sources */,
 				D2E0A7392C9D5F5200A1A1A1 /* PersistenceController.swift in Sources */,
 				D2E0A73A2C9D5F5200A1A1A1 /* DogPhotoStore.swift in Sources */,
 				673CD32C38014CC9996709255C12DB61 /* ModelRegistry.swift in Sources */,
-
+				A775EF692ED0385A0030EDB3 /* CameraManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

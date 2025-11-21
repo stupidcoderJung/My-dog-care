@@ -19,82 +19,113 @@ struct OnAirView: View {
     @State private var errorMessage: String?
     
     var body: some View {
-        VStack(spacing: 0) {
-            // 1. Camera Feed (Top Half)
-            ZStack {
-                if cameraManager.permissionGranted {
-                    if let currentFrame = cameraManager.currentFrame {
-                        Image(decorative: currentFrame, scale: 1.0, orientation: .up)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .clipped()
+        ZStack {
+            VStack(spacing: 0) {
+                // 1. Camera Feed (Top Half)
+                ZStack {
+                    if cameraManager.permissionGranted {
+                        if let currentFrame = cameraManager.currentFrame {
+                            Image(decorative: currentFrame, scale: 1.0, orientation: .up)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .clipped()
+                        } else {
+                            Color.black
+                            ProgressView()
+                                .tint(.white)
+                        }
                     } else {
                         Color.black
-                        ProgressView()
-                            .tint(.white)
+                        Text("Camera permission required")
+                            .foregroundStyle(.white)
                     }
-                } else {
-                    Color.black
-                    Text("Camera permission required")
-                        .foregroundStyle(.white)
                 }
+                .frame(height: UIScreen.main.bounds.height * 0.45)
                 
-                // Overlay controls
-                VStack {
-                    Spacer()
-                    Button(action: startAnalysis) {
-                        HStack {
-                            Image(systemName: "video.badge.waveform")
-                            Text(isAnalyzing ? "Analyzing..." : "Analyze Stream")
+                // 2. Image Strip (Thin)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(0..<capturedImages.count, id: \.self) { index in
+                            Image(uiImage: capturedImages[index])
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 80, height: 60)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color.white.opacity(0.5), lineWidth: 1)
+                                )
                         }
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .padding()
-                        .background(.ultraThinMaterial, in: Capsule())
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                }
+                .frame(height: 80)
+                .background(Color(.systemGray6))
+                
+                // 3. Analysis Result & Debug (Bottom)
+                TabView {
+                    // Page 1: Result
+                    ResultView(analysisResult: analysisResult, errorMessage: errorMessage)
+                        .tag(0)
+                    
+                    // Page 2: Debug Prompt
+                    PromptDebugView(debugTurns: debugTurns)
+                        .tag(1)
+                }
+                .tabViewStyle(.page(indexDisplayMode: .automatic))
+                .indexViewStyle(.page(backgroundDisplayMode: .always))
+                .background(Color(.systemBackground))
+            }
+            .edgesIgnoringSafeArea(.top)
+            
+            // Analyze Button - Floating Action Button (FAB) in bottom-right
+            VStack {
+                Spacer()
+                    .frame(height: UIScreen.main.bounds.height * 0.45 - 100)
+                
+                HStack {
+                    Spacer()
+                    
+                    Button(action: startAnalysis) {
+                        ZStack {
+                            // Pulsing animation when analyzing
+                            if isAnalyzing {
+                                Circle()
+                                    .fill(Color.blue.opacity(0.3))
+                                    .frame(width: 72, height: 72)
+                                    .scaleEffect(1.2)
+                            }
+                            
+                            // Main button
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color.blue, Color.blue.opacity(0.8)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 64, height: 64)
+                                .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 6)
+                            
+                            // Icon
+                            Image(systemName: isAnalyzing ? "hourglass" : "camera.metering.multispot")
+                                .font(.system(size: 28, weight: .medium))
+                                .foregroundStyle(.white)
+                                .rotationEffect(.degrees(isAnalyzing ? 180 : 0))
+                                .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: isAnalyzing)
+                        }
                     }
                     .disabled(isAnalyzing || !cameraManager.permissionGranted)
-                    .padding(.bottom, 20)
+                    .opacity((isAnalyzing || !cameraManager.permissionGranted) ? 0.5 : 1.0)
+                    .padding(.trailing, 20)
                 }
-            }
-            .frame(height: UIScreen.main.bounds.height * 0.45)
-            
-            // 2. Image Strip (Thin)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(0..<capturedImages.count, id: \.self) { index in
-                        Image(uiImage: capturedImages[index])
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 80, height: 60)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.white.opacity(0.5), lineWidth: 1)
-                            )
-                    }
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-            }
-            .frame(height: 80)
-            .background(Color(.systemGray6))
-            
-            // 3. Analysis Result & Debug (Bottom)
-            TabView {
-                // Page 1: Result
-                ResultView(analysisResult: analysisResult, errorMessage: errorMessage)
-                    .tag(0)
                 
-                // Page 2: Debug Prompt
-                PromptDebugView(debugTurns: debugTurns)
-                    .tag(1)
+                Spacer()
             }
-            .tabViewStyle(.page(indexDisplayMode: .automatic))
-            .indexViewStyle(.page(backgroundDisplayMode: .always))
-            .background(Color(.systemBackground))
         }
-        .edgesIgnoringSafeArea(.top)
         .onAppear {
             cameraManager.start()
         }
