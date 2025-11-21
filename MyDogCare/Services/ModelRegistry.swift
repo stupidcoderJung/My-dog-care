@@ -9,6 +9,26 @@ struct DebugTurn: Identifiable {
     let images: [UIImage]
 }
 
+struct VisionResponse: Codable {
+    let timestamp: String
+    let dogs: [DogAnalysis]
+    let environment: VisionEnvironment
+}
+
+struct DogAnalysis: Codable {
+    let name: String
+    let confidence: Float
+    let posture: String
+    let action: String
+    let emotion: String
+    let health_signals: [String]
+}
+
+struct VisionEnvironment: Codable {
+    let location: String
+    let objects: [String]
+}
+
 @MainActor
 final class VisionClient: ObservableObject {
     private let baseURL = URL(string: "http://192.168.0.77:8080/v1/chat/completions")!
@@ -76,9 +96,9 @@ final class VisionClient: ObservableObject {
         }
     }
     
-    func analyzeStream(images: [UIImage], dogs: [Dog]) async throws -> (response: String, debugTurns: [DebugTurn]) {
+    func analyzeStream(images: [UIImage], dogs: [Dog]) async throws -> (response: VisionResponse, debugTurns: [DebugTurn]) {
         // 1. System Prompt
-        let systemPrompt = "You are an intelligent video analysis assistant designed to process multiple sequential image frames and output a consolidated decision in strictly valid JSON format without any markdown or prose."
+        let systemPrompt = "You are an intelligent video analysis assistant. Your job is to analyze images and output structured JSON data."
         
         var messages: [[String: Any]] = [
             ["role": "system", "content": systemPrompt]
@@ -107,7 +127,7 @@ final class VisionClient: ObservableObject {
                     let base64 = data.base64EncodedString()
                     
                     // User Turn: Image FIRST, then Text
-                    let userText = "Describe the dog named '\(name)'. State the breed '\(breed)' in its own sentence."
+                    let userText = "This is \(name). Breed: \(breed)."
                     let userTurnContent: [[String: Any]] = [
                         ["type": "image_url", "image_url": ["url": "data:image/jpeg;base64,\(base64)"]],
                         ["type": "text", "text": userText]
@@ -129,32 +149,73 @@ final class VisionClient: ObservableObject {
         let maxDimension: CGFloat = 512
         var currentImageContent: [[String: Any]] = []
         
-        let dogNamesString = dogs.compactMap { $0.name }.joined(separator: " | ")
+        let dogNamesString = dogs.compactMap { $0.name }.joined(separator: ", ")
+        let isoDate = ISO8601DateFormatter().string(from: Date())
         
         let finalUserPrompt = """
-        You will see multiple images that provide temporal context.
-        Your task is to produce exactly one consolidated decision - return it as a single
-        JSON object on one line.
-        Do not include any explanation or text outside the JSON.
-        JSON schema:
-        {
-        "which": "\(dogNamesString)",
-        "action": "one of allowed labels",
-        "conf_which": 0.0,
-        "conf_action": 0.0,
-        "notes": "very brief cues (e.g., cone, curled tail, bowl, tongue, lying)"
-        }
-        Rules:
-        - There are \(images.count) images in total.
-        - Use all images only to improve confidence; do not return an array.
-        - Allowed action labels:
-        ["drink", "eat", "gait", "rest", "active_low", "active_high", "social", "grooming", "alert", "vocalizing", "other"]
-        """
+        Analyze the attached sequence of images.
+        Context: The following dogs are known: \(dogNamesString).
         
-        // Images FIRST for current request too? The user didn't explicitly say for the final turn, but consistency is good.
-        // However, usually for "analyze these images", images come first or last.
-        // The user said "user에서 콘텐츠를 전달 할 땐, 이미지들이 앞에오게 합니다." which implies generally.
-        // Let's put images first.
+        Task:
+        1. Identify if any of the known dogs are present.
+        2. Analyze their posture, action, emotion, and health signals.
+        3. Analyze the environment.
+        
+        IMPORTANT:
+        - If NO DOG is clearly visible, set "dogs" to an empty array [].
+        - Do NOT hallucinate a dog if the scene is empty.
+        
+        Output Format:
+        Return ONLY a valid JSON object. Do NOT use markdown blocks.
+        
+        JSON Schema:
+        {
+          "timestamp": "ISO8601 String (Use current time: \(isoDate))",
+          "dogs": [
+            {
+              "name": "String (Name from context or 'Unknown')",
+              "confidence": "Float (0.0-1.0)",
+              "posture": "String (standing, sitting, lying_side, lying_belly, curled, sploot)",
+              "action": "String (sleeping, eating, drinking, playing, walking, grooming, idle)",
+              "emotion": "String (relaxed, tail_wagging, ears_flat, panting, whale_eye, anxious)",
+              "health_signals": ["String (limping, scratching, vomiting, shaking, none)"]
+            }
+          ],
+          "environment": {
+            "location": "String (e.g., living_room, garden, cage)",
+            "objects": ["String (visible objects related to dogs)"]
+          }
+        }
+        
+        Example Output (Dog Visible):
+        {
+          "timestamp": "\(isoDate)",
+          "dogs": [
+            {
+              "name": "Buddy",
+              "confidence": 0.95,
+              "posture": "sitting",
+              "action": "idle",
+              "emotion": "relaxed",
+              "health_signals": ["none"]
+            }
+          ],
+          "environment": {
+            "location": "living_room",
+            "objects": ["dog_bed", "toy"]
+          }
+        }
+        
+        Example Output (No Dog):
+        {
+          "timestamp": "\(isoDate)",
+          "dogs": [],
+          "environment": {
+            "location": "living_room",
+            "objects": []
+          }
+        }
+        """
         
         for image in images {
             let resized = image.resizedToFit(maxDimension: maxDimension) ?? image
@@ -172,7 +233,7 @@ final class VisionClient: ObservableObject {
         let requestBody: [String: Any] = [
             "model": "qwen3-vl-2b-instruct",
             "messages": messages,
-            "max_tokens": 500,
+            "max_tokens": 1000,
             "temperature": 0.1,
             "response_format": ["type": "json_object"]
         ]
@@ -185,23 +246,45 @@ final class VisionClient: ObservableObject {
         request.timeoutInterval = 180
         
         // 5. Send Request
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
-            let errorBody = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw NSError(domain: "VisionClient", code: statusCode, userInfo: [NSLocalizedDescriptionKey: "Server Error: \(statusCode) - \(errorBody)"])
-        }
-        
-        if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let choices = json["choices"] as? [[String: Any]],
-           let firstChoice = choices.first,
-           let message = firstChoice["message"] as? [String: Any],
-           let content = message["content"] as? String {
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
             
-            return (content, debugTurns)
-        } else {
-            throw NSError(domain: "VisionClient", code: -2, userInfo: [NSLocalizedDescriptionKey: "Response parsing failed"])
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+                print("DEBUG: Server Error: \(statusCode)")
+                return (VisionResponse(timestamp: isoDate, dogs: [], environment: VisionEnvironment(location: "Unknown", objects: [])), debugTurns)
+            }
+            
+            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let choices = json["choices"] as? [[String: Any]],
+               let firstChoice = choices.first,
+               let message = firstChoice["message"] as? [String: Any],
+               let content = message["content"] as? String {
+                
+                // Debug: Log raw content
+                print("DEBUG: Raw Vision Response: \(content)")
+                
+                // Parse JSON
+                guard let contentData = content.data(using: .utf8) else {
+                    print("DEBUG: Could not convert content to data")
+                    return (VisionResponse(timestamp: isoDate, dogs: [], environment: VisionEnvironment(location: "Unknown", objects: [])), debugTurns)
+                }
+                
+                do {
+                    let visionResponse = try JSONDecoder().decode(VisionResponse.self, from: contentData)
+                    return (visionResponse, debugTurns)
+                } catch {
+                    print("DEBUG: JSON Parsing Error: \(error). Raw: \(content)")
+                    // Return safe default on parsing error
+                    return (VisionResponse(timestamp: isoDate, dogs: [], environment: VisionEnvironment(location: "Unknown", objects: [])), debugTurns)
+                }
+            } else {
+                print("DEBUG: Response parsing failed (structure mismatch)")
+                return (VisionResponse(timestamp: isoDate, dogs: [], environment: VisionEnvironment(location: "Unknown", objects: [])), debugTurns)
+            }
+        } catch {
+            print("DEBUG: Network or other error: \(error)")
+            return (VisionResponse(timestamp: isoDate, dogs: [], environment: VisionEnvironment(location: "Unknown", objects: [])), debugTurns)
         }
     }
 }

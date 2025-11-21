@@ -209,7 +209,31 @@ struct OnAirView: View {
             let result = try await visionClient.analyzeStream(images: frames, dogs: dogList)
             
             await MainActor.run {
-                self.analysisResult = result.response
+                // Format VisionResponse to String for display
+                let response = result.response
+                var formattedResult = "Time: \(response.timestamp)\n\n"
+                
+                if !response.dogs.isEmpty {
+                    formattedResult += "Dogs:\n"
+                    for dog in response.dogs {
+                        formattedResult += "- \(dog.name) (\(Int(dog.confidence * 100))%)\n"
+                        formattedResult += "  Action: \(dog.action)\n"
+                        formattedResult += "  Posture: \(dog.posture)\n"
+                        formattedResult += "  Emotion: \(dog.emotion)\n"
+                        if !dog.health_signals.isEmpty {
+                            formattedResult += "  Health: \(dog.health_signals.joined(separator: ", "))\n"
+                        }
+                        formattedResult += "\n"
+                    }
+                }
+                
+                formattedResult += "Environment:\n"
+                formattedResult += "Location: \(response.environment.location)\n"
+                if !response.environment.objects.isEmpty {
+                    formattedResult += "Objects: \(response.environment.objects.joined(separator: ", "))"
+                }
+                
+                self.analysisResult = formattedResult
                 self.debugTurns = result.debugTurns
             }
         } catch {
