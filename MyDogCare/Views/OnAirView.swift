@@ -1,0 +1,251 @@
+import SwiftUI
+import AVFoundation
+
+struct OnAirView: View {
+    @StateObject private var cameraManager = CameraManager()
+    @EnvironmentObject private var visionClient: VisionClient
+    @Environment(\.managedObjectContext) private var viewContext
+    
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \Dog.createdAt, ascending: false)],
+        animation: .default
+    )
+    private var dogs: FetchedResults<Dog>
+    
+    @State private var capturedImages: [UIImage] = []
+    @State private var analysisResult: String = ""
+    @State private var debugTurns: [DebugTurn] = []
+    @State private var isAnalyzing = false
+    @State private var errorMessage: String?
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // 1. Camera Feed (Top Half)
+            ZStack {
+                if cameraManager.permissionGranted {
+                    if let currentFrame = cameraManager.currentFrame {
+                        Image(decorative: currentFrame, scale: 1.0, orientation: .up)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .clipped()
+                    } else {
+                        Color.black
+                        ProgressView()
+                            .tint(.white)
+                    }
+                } else {
+                    Color.black
+                    Text("Camera permission required")
+                        .foregroundStyle(.white)
+                }
+                
+                // Overlay controls
+                VStack {
+                    Spacer()
+                    Button(action: startAnalysis) {
+                        HStack {
+                            Image(systemName: "video.badge.waveform")
+                            Text(isAnalyzing ? "Analyzing..." : "Analyze Stream")
+                        }
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .padding()
+                        .background(.ultraThinMaterial, in: Capsule())
+                    }
+                    .disabled(isAnalyzing || !cameraManager.permissionGranted)
+                    .padding(.bottom, 20)
+                }
+            }
+            .frame(height: UIScreen.main.bounds.height * 0.45)
+            
+            // 2. Image Strip (Thin)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(0..<capturedImages.count, id: \.self) { index in
+                        Image(uiImage: capturedImages[index])
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 80, height: 60)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.white.opacity(0.5), lineWidth: 1)
+                            )
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+            }
+            .frame(height: 80)
+            .background(Color(.systemGray6))
+            
+            // 3. Analysis Result & Debug (Bottom)
+            TabView {
+                // Page 1: Result
+                ResultView(analysisResult: analysisResult, errorMessage: errorMessage)
+                    .tag(0)
+                
+                // Page 2: Debug Prompt
+                PromptDebugView(debugTurns: debugTurns)
+                    .tag(1)
+            }
+            .tabViewStyle(.page(indexDisplayMode: .automatic))
+            .indexViewStyle(.page(backgroundDisplayMode: .always))
+            .background(Color(.systemBackground))
+        }
+        .edgesIgnoringSafeArea(.top)
+        .onAppear {
+            cameraManager.start()
+        }
+        .onDisappear {
+            cameraManager.stop()
+        }
+    }
+    
+    private func startAnalysis() {
+        guard !isAnalyzing else { return }
+        isAnalyzing = true
+        errorMessage = nil
+        analysisResult = ""
+        debugTurns = []
+        capturedImages = []
+        
+        Task {
+            // Capture 5 frames with 0.2s interval
+            let frames = await cameraManager.captureBurst(count: 5, interval: 0.2)
+            
+            await MainActor.run {
+                self.capturedImages = frames
+            }
+            
+            guard !frames.isEmpty else {
+                await MainActor.run {
+                    self.errorMessage = "Failed to capture images"
+                    self.isAnalyzing = false
+                }
+                return
+            }
+            
+            do {
+                // Convert FetchedResults to Array for the async call
+                let dogList = dogs.map { $0 }
+                let result = try await visionClient.analyzeStream(images: frames, dogs: dogList)
+                
+                await MainActor.run {
+                    self.analysisResult = result.response
+                    self.debugTurns = result.debugTurns
+                    self.isAnalyzing = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.errorMessage = error.localizedDescription
+                    self.isAnalyzing = false
+                }
+            }
+        }
+    }
+}
+
+struct ResultView: View {
+    let analysisResult: String
+    let errorMessage: String?
+    
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                if let error = errorMessage {
+                    Text("Error")
+                        .font(.headline)
+                        .foregroundStyle(.red)
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if !analysisResult.isEmpty {
+                    Text("AI Analysis Result")
+                        .font(.headline)
+                        .foregroundStyle(.tint)
+                    
+                    Text(analysisResult)
+                        .font(.system(.body, design: .monospaced))
+                        .padding()
+                        .background(Color(.secondarySystemBackground))
+                        .cornerRadius(12)
+                } else {
+                    Text("Ready to analyze")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 40)
+                }
+            }
+            .padding()
+        }
+    }
+}
+
+struct PromptDebugView: View {
+    let debugTurns: [DebugTurn]
+    
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                Text("Conversation History")
+                    .font(.headline)
+                    .padding(.bottom, 4)
+                
+                ForEach(debugTurns) { turn in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(turn.role)
+                            .font(.subheadline.bold())
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(roleColor(for: turn.role).opacity(0.1))
+                            .cornerRadius(4)
+                        
+                        if !turn.images.isEmpty {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack {
+                                    ForEach(0..<turn.images.count, id: \.self) { index in
+                                        Image(uiImage: turn.images[index])
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(height: 100)
+                                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    }
+                                }
+                            }
+                        }
+                        
+                        Text(turn.content)
+                            .font(.caption.monospaced())
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(.secondarySystemBackground))
+                            .cornerRadius(12)
+                    }
+                    .padding(.bottom, 8)
+                    
+                    Divider()
+                }
+            }
+            .padding()
+        }
+    }
+    
+    private func roleColor(for role: String) -> Color {
+        switch role.lowercased() {
+        case "system": return .purple
+        case "user": return .blue
+        case "assistant": return .green
+        default: return .gray
+        }
+    }
+}
+
+#Preview {
+    OnAirView()
+        .environmentObject(VisionClient())
+        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+}
