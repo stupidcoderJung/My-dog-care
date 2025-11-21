@@ -1,296 +1,96 @@
 import Foundation
+import UIKit
 import SwiftUI
 
 @MainActor
-final class ModelRegistry: ObservableObject {
-    struct Descriptor: Identifiable, Equatable {
-        enum LoadMode: Equatable {
-            case llamaContext
-            case mmproj(baseModelFilename: String)
+final class VisionClient: ObservableObject {
+    private let baseURL = URL(string: "http://192.168.0.77:8080/v1/chat/completions")!
+    
+    func analyzeImage(image: UIImage, name: String, breed: String) async throws -> String {
+        // 이미지 리사이징 및 압축 (너무 크면 전송 실패 가능성)
+        let maxDimension: CGFloat = 1024
+        let resizedImage = image.resizedToFit(maxDimension: maxDimension) ?? image
+        
+        guard let imageData = resizedImage.jpegData(compressionQuality: 0.5) else {
+            throw NSError(domain: "VisionClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "이미지 데이터 변환 실패"])
         }
-
-        let id = UUID()
-        let filename: String
-        let fileExtension: String
-        let displayName: String
-        let directory: String?
-        let loadMode: LoadMode
-
-        var fileNameWithExtension: String {
-            "\(filename).\(fileExtension)"
-        }
-    }
-
-    enum LoadState: Equatable {
-        case pending
-        case loading
-        case loaded
-        case failed(String)
-
-        var statusText: String {
-            switch self {
-            case .pending:
-                return "대기 중"
-            case .loading:
-                return "로드 중…"
-            case .loaded:
-                return "로드 완료"
-            case .failed:
-                return "실패"
-            }
-        }
-
-        var accessorySystemImage: String {
-            switch self {
-            case .pending:
-                return "hourglass"
-            case .loading:
-                return "arrow.triangle.2.circlepath"
-            case .loaded:
-                return "checkmark.circle.fill"
-            case .failed:
-                return "exclamationmark.triangle.fill"
-            }
-        }
-    }
-
-    struct Status: Identifiable, Equatable {
-        let descriptor: Descriptor
-        var state: LoadState = .pending
-        var location: URL?
-        var lastError: String?
-
-        var id: UUID { descriptor.id }
-
-        var subtitle: String {
-            switch state {
-            case .failed(let message):
-                return message
-            case .loaded:
-                return location?.lastPathComponent ?? "메모리에 상주 중"
-            case .pending, .loading:
-                return descriptor.fileNameWithExtension
-            }
-        }
-    }
-
-    @Published private(set) var statuses: [Status]
-
-    private enum LoadedResource {
-        case llama(LlamaContext)
-        case projector(MultimodalProjector)
-    }
-
-    private var resources: [UUID: LoadedResource] = [:]
-    private let descriptors: [Descriptor]
-    private let fileManager: FileManager
-    private var hasStartedLoading = false
-
-    init(
-        models: [Descriptor] = ModelRegistry.defaultDescriptors(),
-        fileManager: FileManager = .default
-    ) {
-        self.descriptors = models
-        self.fileManager = fileManager
-        self.statuses = models.map { Status(descriptor: $0) }
-    }
-
-    func ensureModelsLoaded() {
-        guard !hasStartedLoading else { return }
-        hasStartedLoading = true
-
-        Task {
-            for descriptor in descriptors {
-                await loadModel(for: descriptor)
-            }
-        }
-    }
-
-    var isVisionPipelineReady: Bool {
-        visionResources() != nil
-    }
-
-    func visionResources() -> (context: LlamaContext, projector: MultimodalProjector)? {
-        guard
-            let textDescriptor = descriptors.first(where: {
-                if case .llamaContext = $0.loadMode { return true }
-                return false
-            }),
-            let projectorDescriptor = descriptors.first(where: {
-                if case .mmproj = $0.loadMode { return true }
-                return false
-            }),
-            let textResource = resources[textDescriptor.id],
-            let projectorResource = resources[projectorDescriptor.id],
-            case let .llama(context) = textResource,
-            case let .projector(projector) = projectorResource
-        else {
-            return nil
-        }
-        return (context, projector)
-    }
-
-    private func loadModel(for descriptor: Descriptor) async {
-        updateStatus(for: descriptor) { $0.state = .loading }
-
-        guard let url = resolveModelURL(for: descriptor) else {
-            updateStatus(for: descriptor) {
-                $0.state = .failed("파일을 찾을 수 없어요")
-            }
-            return
-        }
-
-        switch descriptor.loadMode {
-        case .llamaContext:
-            do {
-                let context = try await ModelRegistry.makeContext(at: url)
-                resources[descriptor.id] = .llama(context)
-                updateStatus(for: descriptor) {
-                    $0.location = url
-                    $0.state = .loaded
-                    $0.lastError = nil
-                }
-            } catch {
-                updateStatus(for: descriptor) {
-                    $0.location = url
-                    $0.state = .failed(error.localizedDescription)
-                    $0.lastError = error.localizedDescription
-                }
-            }
-        case .mmproj(let baseModelFilename):
-            guard let baseContext = llamaContext(forFilename: baseModelFilename) else {
-                updateStatus(for: descriptor) {
-                    $0.location = url
-                    $0.state = .failed("텍스트 모델이 먼저 로드되어야 해요")
-                    $0.lastError = "텍스트 모델이 먼저 로드되어야 해요"
-                }
-                return
-            }
-
-            do {
-                let projector = try await ModelRegistry.makeProjector(at: url, textContext: baseContext)
-                resources[descriptor.id] = .projector(projector)
-                updateStatus(for: descriptor) {
-                    $0.location = url
-                    $0.state = .loaded
-                    $0.lastError = nil
-                }
-            } catch {
-                updateStatus(for: descriptor) {
-                    $0.location = url
-                    $0.state = .failed(error.localizedDescription)
-                    $0.lastError = error.localizedDescription
-                }
-            }
-        }
-    }
-
-    private func llamaContext(forFilename filename: String) -> LlamaContext? {
-        guard let descriptor = descriptors.first(where: { $0.filename == filename }) else { return nil }
-        guard let resource = resources[descriptor.id] else { return nil }
-        if case let .llama(context) = resource {
-            return context
-        }
-        return nil
-    }
-
-    private func updateStatus(for descriptor: Descriptor, mutate: (inout Status) -> Void) {
-        guard let index = statuses.firstIndex(where: { $0.descriptor.id == descriptor.id }) else { return }
-        mutate(&statuses[index])
-    }
-
-    private func resolveModelURL(for descriptor: Descriptor) -> URL? {
-        if let url = Bundle.main.url(
-            forResource: descriptor.filename,
-            withExtension: descriptor.fileExtension,
-            subdirectory: descriptor.directory
-        ) {
-            return url
-        }
-
-        if let url = Bundle.main.url(
-            forResource: descriptor.filename,
-            withExtension: descriptor.fileExtension
-        ) {
-            return url
-        }
-
-        if let resourceURL = Bundle.main.resourceURL {
-            let directURL = resourceURL.appendingPathComponent(descriptor.fileNameWithExtension)
-            if fileManager.fileExists(atPath: directURL.path) {
-                return directURL
-            }
-
-            if let directory = descriptor.directory {
-                let nestedURL = resourceURL
-                    .appendingPathComponent(directory, isDirectory: true)
-                    .appendingPathComponent(descriptor.fileNameWithExtension)
-                if fileManager.fileExists(atPath: nestedURL.path) {
-                    return nestedURL
-                }
-            }
-        }
-
-        if let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
-            let docURL = documentsURL
-                .appendingPathComponent(descriptor.directory ?? "", isDirectory: true)
-                .appendingPathComponent(descriptor.fileNameWithExtension)
-            if fileManager.fileExists(atPath: docURL.path) {
-                return docURL
-            }
-        }
-
-        return nil
-    }
-
-    private static func makeContext(at url: URL) async throws -> LlamaContext {
-        try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                do {
-                    let context = try LlamaContext.create_context(path: url.path)
-                    continuation.resume(returning: context)
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
-        }
-    }
-
-    private static func makeProjector(at url: URL, textContext: LlamaContext) async throws -> MultimodalProjector {
-        let pointer = await textContext.modelPointer()
-        return try await MultimodalProjector.create(mmprojPath: url.path, textModelPointer: pointer)
-    }
-
-    nonisolated static func defaultDescriptors() -> [Descriptor] {
-        [
-            Descriptor(
-                filename: "Qwen3-VL-2B-Instruct-UD-IQ3_XXS",
-                fileExtension: "gguf",
-                displayName: "Qwen3-VL-2B-Instruct-UD-IQ3_XXS",
-                directory: "models",
-                loadMode: .llamaContext
-            ),
-            Descriptor(
-                filename: "mmproj-Qwen3VL-2B-Instruct-Q8_0",
-                fileExtension: "gguf",
-                displayName: "mmproj-Qwen3VL-2B-Instruct-Q8_0",
-                directory: "models",
-                loadMode: .mmproj(baseModelFilename: "Qwen3-VL-2B-Instruct-UD-IQ3_XXS")
-            )
+        
+        let base64Image = imageData.base64EncodedString()
+        let imageURL = "data:image/jpeg;base64,\(base64Image)"
+        
+        let systemPrompt = """
+        You describe only the dog's visible appearance in Korean: color, size, fur, ears, eyes, markings, tail. Ignore pose, action, location, background, objects, people. Write 2-3 short sentences, under 100 characters total. Mention the dog's name in quotes and the breed in its own sentence.
+        """
+        
+        let userPrompt = "Describe the dog named '\(name)'. State the breed '\(breed)' in its own sentence. Appearance only (no pose/action/location/background/objects/people), under 100 characters total."
+        
+        let requestBody: [String: Any] = [
+            "model": "qwen3-vl-2b-instruct",
+            "messages": [
+                [
+                    "role": "system",
+                    "content": systemPrompt
+                ],
+                [
+                    "role": "user",
+                    "content": [
+                        ["type": "text", "text": userPrompt],
+                        ["type": "image_url", "image_url": ["url": imageURL]]
+                    ]
+                ]
+            ],
+            "max_tokens": 3000,
+            "temperature": 0.7
         ]
+        
+        var request = URLRequest(url: baseURL)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer lm-studio", forHTTPHeaderField: "Authorization")
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        request.timeoutInterval = 180
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+            let errorBody = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw NSError(domain: "VisionClient", code: statusCode, userInfo: [NSLocalizedDescriptionKey: "서버 에러: \(statusCode) - \(errorBody)"])
+        }
+        
+        if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let choices = json["choices"] as? [[String: Any]],
+           let firstChoice = choices.first,
+           let message = firstChoice["message"] as? [String: Any],
+           let content = message["content"] as? String {
+            return content
+        } else {
+            throw NSError(domain: "VisionClient", code: -2, userInfo: [NSLocalizedDescriptionKey: "응답 파싱 실패"])
+        }
     }
 }
 
-#if DEBUG
-extension ModelRegistry {
-    static func preview() -> ModelRegistry {
-        let registry = ModelRegistry()
-        if registry.statuses.count >= 2 {
-            registry.statuses[0].state = .loaded
-            registry.statuses[0].location = URL(fileURLWithPath: "/tmp/models/\(registry.statuses[0].descriptor.fileNameWithExtension)")
-            registry.statuses[1].state = .loading
+// UIImage Extension for Resizing (AddDogView에 있는 것과 중복될 수 있으나, VisionClient가 독립적으로 동작하도록 포함하거나 AddDogView의 것을 사용해야 함. 여기서는 안전하게 private extension으로 추가하거나, AddDogView의 것을 public으로 변경해야 함. AddDogView의 것은 private이므로 여기에 private으로 복사함)
+private extension UIImage {
+    func resizedToFit(maxDimension: CGFloat) -> UIImage? {
+        guard maxDimension > 0 else { return nil }
+        let longerSide = max(size.width, size.height)
+        guard longerSide > maxDimension else { return self }
+        let scale = maxDimension / longerSide
+        return resized(by: scale)
+    }
+
+    func resized(by scale: CGFloat) -> UIImage? {
+        let safeScale = max(min(scale, 1.0), 0.01)
+        let newSize = CGSize(
+            width: max(1, size.width * safeScale),
+            height: max(1, size.height * safeScale)
+        )
+
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        return renderer.image { context in
+            context.cgContext.interpolationQuality = .high
+            draw(in: CGRect(origin: .zero, size: newSize))
         }
-        return registry
     }
 }
-#endif

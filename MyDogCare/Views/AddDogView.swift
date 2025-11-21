@@ -6,7 +6,7 @@ import UIKit
 struct AddDogView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
-    @EnvironmentObject private var modelRegistry: ModelRegistry
+    @EnvironmentObject private var visionClient: VisionClient
     @State private var name: String = ""
     @State private var breed: String = ""
     @State private var selectedImage: UIImage?
@@ -22,9 +22,9 @@ struct AddDogView: View {
     @State private var aiResponse: String?
     @State private var aiErrorMessage: String?
     @State private var isSendingToAI = false
-    @State private var aiEmbedding: Data?
+
 //    private let aiImageMaxDimension: CGFloat = 256
-    private let aiImageMaxDimension: CGFloat = 160
+    private let aiImageDimension: CGFloat = 112
     @FocusState private var focusedField: Field?
 
     enum Field: Hashable {
@@ -56,7 +56,7 @@ struct AddDogView: View {
                             .frame(height: 200)
                             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                             .overlay(alignment: .bottomTrailing) {
-                                Text("AI용 \(Int(aiImageMaxDimension))px로 압축됨")
+                                Text("112px AI 최적화 완료")
                                     .font(.caption2)
                                     .padding(6)
                                     .background(.thinMaterial, in: Capsule())
@@ -103,12 +103,6 @@ struct AddDogView: View {
                     .buttonStyle(.bordered)
                     .disabled(!canSendToAI)
 
-                    if !modelRegistry.isVisionPipelineReady {
-                        Label("로컬 AI 모델을 준비하는 중이에요.", systemImage: "hourglass")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
                     if isSendingToAI {
                         ProgressView("AI 분석 중…")
                     } else if let aiResponse {
@@ -128,6 +122,8 @@ struct AddDogView: View {
                             .font(.caption)
                             .foregroundStyle(.red)
                     }
+
+
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -194,13 +190,14 @@ struct AddDogView: View {
     private var canSendToAI: Bool {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedBreed = breed.trimmingCharacters(in: .whitespacesAndNewlines)
-        return modelRegistry.isVisionPipelineReady &&
-        !trimmedName.isEmpty &&
+        return !trimmedName.isEmpty &&
         !trimmedBreed.isEmpty &&
         compressedImageData != nil &&
         !isProcessingImage &&
         !isSendingToAI
     }
+
+
 
     private func save() {
         guard selectedImage != nil,
@@ -216,11 +213,7 @@ struct AddDogView: View {
             if let aiResponse {
                 dog.aiDescription = aiResponse.trimmingCharacters(in: .whitespacesAndNewlines)
             }
-            if let aiEmbedding {
-                dog.aiEmbedding = aiEmbedding
-            } else {
-                dog.aiEmbedding = imageData
-            }
+
 
             try viewContext.save()
             dismiss()
@@ -231,7 +224,7 @@ struct AddDogView: View {
     }
 
     private func sendImageToAI() {
-        guard let imageData = compressedImageData else { return }
+        guard let imageData = selectedImage else { return }
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedBreed = breed.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -240,41 +233,15 @@ struct AddDogView: View {
             return
         }
 
-        guard let resources = modelRegistry.visionResources() else {
-            aiErrorMessage = "AI 모델이 아직 준비되지 않았어요."
-            return
-        }
-
-        let prompt = """
-        <|im_start|>system
-        You describe only the dog's visible appearance in Korean: color, size, fur, ears, eyes, markings, tail. Ignore pose, action, location, background, objects, people. Write 2-3 short sentences, under 100 characters total. Mention the dog's name in quotes and the breed in its own sentence.
-        <|im_end|>
-        <|im_start|>user
-        Describe the dog named '\(trimmedName)'. State the breed '\(trimmedBreed)' in its own sentence. Appearance only (no pose/action/location/background/objects/people), under 100 characters total. <|vision_start|><|image_pad|><|vision_end|>
-        <|im_end|>
-        <|im_start|>assistant
-        """
-
-        #if DEBUG
-        print("[AI Prompt] \(prompt)")
-        #endif
-
         isSendingToAI = true
         aiResponse = nil
         aiErrorMessage = nil
-        aiEmbedding = nil
 
         Task {
             do {
-                let response = try await resources.context.generateVisionResponse(
-                    prompt: prompt,
-                    imageData: [imageData],
-                    projector: resources.projector,
-                    maxTokens: 80
-                )
+                let response = try await visionClient.analyzeImage(image: imageData, name: trimmedName, breed: trimmedBreed)
                 await MainActor.run {
-                    aiResponse = response.text
-                    aiEmbedding = response.embedding
+                    aiResponse = response
                     isSendingToAI = false
                 }
             } catch {
@@ -285,6 +252,8 @@ struct AddDogView: View {
             }
         }
     }
+
+
 
     private func loadImage(from item: PhotosPickerItem) async {
         await MainActor.run { isProcessingImage = true }
@@ -302,35 +271,49 @@ struct AddDogView: View {
         await MainActor.run { isProcessingImage = false }
     }
     private func applyImage(_ image: UIImage) {
-        let resized = image.resizedToFit(maxDimension: aiImageMaxDimension) ?? image
+        // 1. 정사각형 크롭
+        guard let cropped = image.cropToCenterSquare() else { return }
+        
+        // 2. 112x112 리사이징
+        let targetSize = CGSize(width: aiImageDimension, height: aiImageDimension)
+        let resized = cropped.resize(to: targetSize) ?? cropped
+        
         selectedImage = resized
-        compressedImageData = resized.jpegData(compressionQuality: 0.3)
+        // 이미지가 작으므로 압축률을 높여도 용량이 작음 (0.8 정도)
+        compressedImageData = resized.jpegData(compressionQuality: 0.8)
+        
         aiResponse = nil
         aiErrorMessage = nil
-        aiEmbedding = nil
     }
 }
 
 private extension UIImage {
-    func resizedToFit(maxDimension: CGFloat) -> UIImage? {
-        guard maxDimension > 0 else { return nil }
-        let longerSide = max(size.width, size.height)
-        guard longerSide > maxDimension else { return self }
-        let scale = maxDimension / longerSide
-        return resized(by: scale)
+    func cropToCenterSquare() -> UIImage? {
+        let originalWidth = size.width
+        let originalHeight = size.height
+        let edge = min(originalWidth, originalHeight)
+        
+        let posX = (originalWidth - edge) / 2.0
+        let posY = (originalHeight - edge) / 2.0
+        
+        // cgImage는 픽셀 단위 좌표계를 사용하므로 scale을 고려해야 함
+        let cropRect = CGRect(
+            x: posX * scale,
+            y: posY * scale,
+            width: edge * scale,
+            height: edge * scale
+        )
+        
+        guard let cgImage = cgImage?.cropping(to: cropRect) else { return nil }
+        
+        return UIImage(cgImage: cgImage, scale: scale, orientation: imageOrientation)
     }
 
-    func resized(by scale: CGFloat) -> UIImage? {
-        let safeScale = max(min(scale, 1.0), 0.01)
-        let newSize = CGSize(
-            width: max(1, size.width * safeScale),
-            height: max(1, size.height * safeScale)
-        )
-
-        let renderer = UIGraphicsImageRenderer(size: newSize)
+    func resize(to targetSize: CGSize) -> UIImage? {
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
         return renderer.image { context in
             context.cgContext.interpolationQuality = .high
-            draw(in: CGRect(origin: .zero, size: newSize))
+            draw(in: CGRect(origin: .zero, size: targetSize))
         }
     }
 }

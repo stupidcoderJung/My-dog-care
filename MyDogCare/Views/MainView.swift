@@ -214,5 +214,5 @@ private struct ActivityCard: View {
 #Preview {
     MainView(session: .preview)
         .environmentObject(AuthViewModel(isPreview: true))
-        .environmentObject(ModelRegistry.preview())
+        .environmentObject(VisionClient())
 }

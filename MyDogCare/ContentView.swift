@@ -136,5 +136,5 @@ struct ErrorView: View {
 #Preview {
     RootView()
         .environmentObject(AuthViewModel(isPreview: true))
-        .environmentObject(ModelRegistry.preview())
+        .environmentObject(VisionClient())
 }
