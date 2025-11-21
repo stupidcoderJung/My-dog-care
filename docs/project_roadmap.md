@@ -4,18 +4,21 @@
 
 ---
 
-## 🚨 Priority 0: On Air Continuous Loop (Real-time Foundation)
+## 🚨 Priority 0: On Air Continuous Loop (Real-time Foundation) ✅
 **목표**: "On Air" 기능이 단발성 실행이 아닌, 활성화 시 계속해서 루프를 돌며 분석하도록 만듭니다.
 
-### 0-1. Continuous Analysis Loop
-- [ ] **[TASK] 루프 로직 구현 (`Views/OnAirView.swift`)**
-    - [ ] **Toggle UI**: "Start Analysis" / "Stop Analysis" 버튼 구현.
-    - [ ] **State Management**: `isAnalyzing` 상태 변수 추가.
-    - [ ] **Loop Logic**:
+### 0-1. Continuous Analysis Loop ✅
+- [x] **[TASK] 루프 로직 구현 (`Views/OnAirView.swift`)**
+    - [x] **Toggle UI**: "Start Analysis" / "Stop Analysis" 버튼 구현.
+    - [x] **State Management**: `isAnalyzing` 상태 변수 추가.
+    - [x] **Loop Logic**:
         - `isAnalyzing`이 `true`일 때 `VisionClient.analyzeStream` 호출.
         - 분석 완료 후 결과 처리 (로그 저장 등).
         - 1초 딜레이 후 재귀적으로(또는 Timer로) 다시 호출.
         - `isAnalyzing`이 `false`가 되면 루프 중단.
+    - [x] **Visual Indicator**: "LIVE" 배지 표시 추가.
+    - [x] **Error Handling**: API 오류 시에도 루프 중단되지 않도록 구현.
+    - [x] **Memory Management**: `onDisappear`에서 루프 자동 정지.
 
 ---
 

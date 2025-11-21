@@ -42,6 +42,23 @@ struct OnAirView: View {
                     }
                 }
                 .frame(height: UIScreen.main.bounds.height * 0.45)
+                .overlay(alignment: .topLeading) {
+                    if isAnalyzing {
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(.red)
+                                .frame(width: 8, height: 8)
+                            Text("LIVE")
+                                .font(.caption.bold())
+                                .foregroundStyle(.white)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(.black.opacity(0.6))
+                        .cornerRadius(4)
+                        .padding(16)
+                    }
+                }
                 
                 // 2. Image Strip (Thin)
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -88,21 +105,22 @@ struct OnAirView: View {
                 HStack {
                     Spacer()
                     
-                    Button(action: startAnalysis) {
+                    Button(action: toggleAnalysis) {
                         ZStack {
                             // Pulsing animation when analyzing
                             if isAnalyzing {
                                 Circle()
-                                    .fill(Color.blue.opacity(0.3))
+                                    .fill(Color.red.opacity(0.3))
                                     .frame(width: 72, height: 72)
                                     .scaleEffect(1.2)
+                                    .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: isAnalyzing)
                             }
                             
                             // Main button
                             Circle()
                                 .fill(
                                     LinearGradient(
-                                        colors: [Color.blue, Color.blue.opacity(0.8)],
+                                        colors: isAnalyzing ? [Color.red, Color.red.opacity(0.8)] : [Color.blue, Color.blue.opacity(0.8)],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     )
@@ -111,15 +129,20 @@ struct OnAirView: View {
                                 .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 6)
                             
                             // Icon
-                            Image(systemName: isAnalyzing ? "hourglass" : "camera.metering.multispot")
-                                .font(.system(size: 28, weight: .medium))
-                                .foregroundStyle(.white)
-                                .rotationEffect(.degrees(isAnalyzing ? 180 : 0))
-                                .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: isAnalyzing)
+                            if isAnalyzing {
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(.white)
+                                    .frame(width: 24, height: 24)
+                            } else {
+                                Image(systemName: "play.fill")
+                                    .font(.system(size: 28, weight: .medium))
+                                    .foregroundStyle(.white)
+                                    .offset(x: 2) // Center the play icon visually
+                            }
                         }
                     }
-                    .disabled(isAnalyzing || !cameraManager.permissionGranted)
-                    .opacity((isAnalyzing || !cameraManager.permissionGranted) ? 0.5 : 1.0)
+                    .disabled(!cameraManager.permissionGranted)
+                    .opacity(!cameraManager.permissionGranted ? 0.5 : 1.0)
                     .padding(.trailing, 20)
                 }
                 
@@ -131,48 +154,68 @@ struct OnAirView: View {
         }
         .onDisappear {
             cameraManager.stop()
+            stopAnalysis()
         }
     }
     
-    private func startAnalysis() {
+    private func toggleAnalysis() {
+        if isAnalyzing {
+            stopAnalysis()
+        } else {
+            startAnalysisLoop()
+        }
+    }
+    
+    private func stopAnalysis() {
+        isAnalyzing = false
+    }
+    
+    private func startAnalysisLoop() {
         guard !isAnalyzing else { return }
         isAnalyzing = true
         errorMessage = nil
-        analysisResult = ""
-        debugTurns = []
-        capturedImages = []
         
         Task {
-            // Capture 5 frames with 0.2s interval
-            let frames = await cameraManager.captureBurst(count: 5, interval: 0.2)
+            while isAnalyzing {
+                await performAnalysisStep()
+                
+                if isAnalyzing {
+                    // Wait for 1 second before next analysis to avoid rate limits
+                    try? await Task.sleep(nanoseconds: 1 * 1_000_000_000)
+                }
+            }
+        }
+    }
+    
+    private func performAnalysisStep() async {
+        // Capture 5 frames with 0.2s interval
+        let frames = await cameraManager.captureBurst(count: 5, interval: 0.2)
+        
+        await MainActor.run {
+            self.capturedImages = frames
+        }
+        
+        guard !frames.isEmpty else {
+            await MainActor.run {
+                self.errorMessage = "Failed to capture images"
+                // Don't stop the loop on capture failure, just retry
+            }
+            return
+        }
+        
+        do {
+            // Convert FetchedResults to Array for the async call
+            let dogList = dogs.map { $0 }
+            let result = try await visionClient.analyzeStream(images: frames, dogs: dogList)
             
             await MainActor.run {
-                self.capturedImages = frames
+                self.analysisResult = result.response
+                self.debugTurns = result.debugTurns
             }
-            
-            guard !frames.isEmpty else {
-                await MainActor.run {
-                    self.errorMessage = "Failed to capture images"
-                    self.isAnalyzing = false
-                }
-                return
-            }
-            
-            do {
-                // Convert FetchedResults to Array for the async call
-                let dogList = dogs.map { $0 }
-                let result = try await visionClient.analyzeStream(images: frames, dogs: dogList)
-                
-                await MainActor.run {
-                    self.analysisResult = result.response
-                    self.debugTurns = result.debugTurns
-                    self.isAnalyzing = false
-                }
-            } catch {
-                await MainActor.run {
-                    self.errorMessage = error.localizedDescription
-                    self.isAnalyzing = false
-                }
+        } catch {
+            await MainActor.run {
+                self.errorMessage = error.localizedDescription
+                // Don't stop the loop on API error, just retry
             }
         }
     }
