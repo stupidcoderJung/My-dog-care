@@ -1,3 +1,4 @@
+import AVFoundation
 import Combine
 import CoreData
 import CoreGraphics
@@ -5,188 +6,309 @@ import CoreImage
 import CoreVideo
 import CryptoKit
 import Foundation
+import UIKit
 
 struct DogState: Identifiable {
-    let id: UUID // Dog's UUID (derived from Core Data when possible)
+    let id: UUID
     let name: String
-    let bounds: CGRect // Normalized [0, 1] coordinates
-    let action: String // "Standing", "Sitting" (Placeholder for now)
+    let bounds: CGRect
+    let action: String
     let confidence: Float
 }
 
-final class VisionService: ObservableObject {
+final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputSampleBufferDelegate {
     @Published var currentFrame: CGImage?
     @Published var detectedDogs: [DogState] = []
+    @Published var lastDetections: [DetectedObject] = []
 
-    private let cameraManager: CameraManager
     private let yoloClient: YOLOClient
-    private let reidTracker: ReIDTracker
+    private let reidTracker: ReIDTracker?
     private let context: NSManagedObjectContext
-
-    private var frameCancellable: AnyCancellable?
-    private var pendingFrame: CGImage?
+    private let visionClient: VisionClient
+    private let imageTagger: ImageTagger
+    
+    // Camera session (integrated from CameraManager)
+    private let captureSession = AVCaptureSession()
+    private let videoOutput = AVCaptureVideoDataOutput()
+    private let sessionQueue = DispatchQueue(label: "com.mydogcare.cameraSession")
+    private let processingQueue = DispatchQueue(label: "com.mydogcare.visionProcessing", qos: .userInitiated)
+    private let ciContext = CIContext()
+    
+    // Frame control
     private var isProcessingFrame = false
-    private let frameControlQueue = DispatchQueue(label: "com.mydogcare.vision.frame-control", qos: .userInitiated)
+    private var frameCounter = 0
+    private let frameStride = 2  // Process every 2nd frame like YoloStream
+    private var isConfigured = false
+    
+    // Display optimization
+    private let targetPreviewWidth: CGFloat = 640
     private let colorSpace = CGColorSpaceCreateDeviceRGB()
 
-    init(
-        cameraManager: CameraManager = CameraManager(),
+    nonisolated init(
         yoloClient: YOLOClient,
-        reidTracker: ReIDTracker,
+        reidTracker: ReIDTracker?,
         context: NSManagedObjectContext = PersistenceController.shared.container.viewContext
     ) {
-        self.cameraManager = cameraManager
         self.yoloClient = yoloClient
         self.reidTracker = reidTracker
         self.context = context
+        
+        // Initialize MainActor-isolated types
+        let client = MainActor.assumeIsolated { VisionClient() }
+        self.visionClient = client
+        self.imageTagger = ImageTagger()
+        
+        super.init()
+        configureSession()
+    }
+    
+    override convenience init() {
+        let yolo = YOLOClient()
+        let reid = try? ReIDTracker()
+        self.init(yoloClient: yolo, reidTracker: reid)
     }
 
     func startProcessing() {
-        guard frameCancellable == nil else { return }
-        cameraManager.start()
-
-        frameCancellable = cameraManager.$currentFrame
-            .compactMap { $0 }
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] frame in
-                guard let self else { return }
-                self.currentFrame = frame
-                self.enqueueFrameForProcessing(frame)
+        sessionQueue.async { [weak self] in
+            guard let self else { return }
+            if !self.captureSession.isRunning {
+                self.captureSession.startRunning()
             }
+        }
     }
 
     func stopProcessing() {
-        frameCancellable?.cancel()
-        frameCancellable = nil
-        cameraManager.stop()
-
-        frameControlQueue.async { [weak self] in
+        sessionQueue.async { [weak self] in
             guard let self else { return }
-            self.pendingFrame = nil
-            self.isProcessingFrame = false
+            if self.captureSession.isRunning {
+                self.captureSession.stopRunning()
+            }
         }
+        
+        isProcessingFrame = false
     }
-
-    deinit {
-        stopProcessing()
-    }
-}
-
-private extension VisionService {
-    func enqueueFrameForProcessing(_ frame: CGImage) {
-        frameControlQueue.async { [weak self] in
-            guard let self else { return }
-            self.pendingFrame = frame
-            self.processPendingFrameIfNeededLocked()
+    
+    // MARK: - AVCaptureVideoDataOutputSampleBufferDelegate
+    
+    nonisolated func captureOutput(
+        _ output: AVCaptureOutput,
+        didOutput sampleBuffer: CMSampleBuffer,
+        from connection: AVCaptureConnection
+    ) {
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+            return
         }
-    }
-
-    func processPendingFrameIfNeededLocked() {
-        guard !isProcessingFrame, let frame = pendingFrame else { return }
+        
+        // Check processing flag (no isolation needed - simple bool read)
+        guard !isProcessingFrame else { return }
+        
+        // Frame striding to reduce processing load
+        frameCounter = (frameCounter + 1) % frameStride
+        guard frameCounter == 0 else { return }
+        
+        // Update UI frame on main thread
+        if let cgImage = makeDisplayImage(from: pixelBuffer) {
+            Task { @MainActor in
+                self.currentFrame = cgImage
+            }
+        }
+        
+        // Mark as processing
         isProcessingFrame = true
-        pendingFrame = nil
-
-        Task(priority: .userInitiated) { [weak self] in
-            guard let self else { return }
-            await self.runPipeline(with: frame)
-            self.frameControlQueue.async { [weak self] in
+        
+        // Process detection on background queue
+        Task {
+            let knownDogs = await fetchKnownDogs()
+            
+            processFrame(pixelBuffer, knownDogs: knownDogs) { [weak self] detections in
                 guard let self else { return }
-                self.isProcessingFrame = false
-                self.processPendingFrameIfNeededLocked()
+                
+                let states = detections.map { detection in
+                    DogState(
+                        id: detection.dogId ?? detection.id,
+                        name: detection.dogName ?? detection.label.capitalized,
+                        bounds: detection.bbox,
+                        action: "Standing",
+                        confidence: detection.confidence
+                    )
+                }
+                
+                DispatchQueue.main.async {
+                    self.detectedDogs = states
+                    self.isProcessingFrame = false
+                }
             }
         }
     }
+    
+    // MARK: - Processing
 
-    func runPipeline(with frame: CGImage) async {
-        let imageSize = CGSize(width: CGFloat(frame.width), height: CGFloat(frame.height))
-        guard let pixelBuffer = makePixelBuffer(from: frame) else { return }
-
-        do {
-            let detections = try await yoloClient.predict(pixelBuffer: pixelBuffer)
-            guard !detections.isEmpty else {
-                await MainActor.run { self.detectedDogs = [] }
+    func processFrame(_ pixelBuffer: CVPixelBuffer, 
+                     knownDogs: [Dog],
+                     completion: @escaping ([DetectedObject]) -> Void) {
+        // 🐕 LOG: Known dogs
+        print("🐕 ProcessFrame: Known dogs count: \(knownDogs.count)")
+        for dog in knownDogs {
+            let dogName = dog.name ?? "unnamed"
+            let hasEmbedding = dog.embedding != nil
+            print("  - \(dogName): has embedding: \(hasEmbedding)")
+            if let emb = dog.embedding {
+                print("    Embedding size: \(emb.count)")
+            }
+        }
+        
+        yoloClient.predict(pixelBuffer: pixelBuffer) { [weak self] detections in
+            guard let self else {
+                completion([])
                 return
             }
-
-            let knownDogs = await fetchKnownDogs()
-            let ciImage = CIImage(cgImage: frame)
-            var dogStates: [DogState] = []
-
-            for detection in detections {
-                guard let cropRect = rectForCropping(from: detection.boundingBox, imageSize: imageSize) else {
-                    continue
-                }
-
-                let croppedImage = ciImage.cropped(to: cropRect)
-
-                do {
-                    let embedding = try await reidTracker.extractEmbedding(from: croppedImage)
-                    let identifiedDog = reidTracker.identify(embedding: embedding, knownDogs: knownDogs)
-                    let normalizedBounds = normalize(rect: cropRect, imageSize: imageSize)
-
-                    let dogState = makeDogState(
-                        detection: detection,
-                        matchedDog: identifiedDog,
-                        normalizedBounds: normalizedBounds
-                    )
-                    dogStates.append(dogState)
-                } catch {
-                    continue
+            
+            print("🎯 YOLO detected \(detections.count) objects")
+            
+            let imageSize = CGSize(width: CVPixelBufferGetWidth(pixelBuffer), height: CVPixelBufferGetHeight(pixelBuffer))
+            let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+            
+            var identifiedDetections: [DetectedObject] = []
+            let syncQueue = DispatchQueue(label: "com.mydogcare.detectionSync")
+            let reIDGroup = DispatchGroup()
+            
+            for (index, detection) in detections.enumerated() {
+                var identified = detection
+                
+                if let tracker = self.reidTracker,
+                   let cropRect = self.rectForCropping(from: detection.bbox, imageSize: imageSize) {
+                    print("✅ ReIDTracker available for detection #\(index)")
+                    let croppedImage = ciImage.cropped(to: cropRect)
+                    reIDGroup.enter()
+                    Task {
+                        do {
+                            let embedding = try await tracker.extractEmbedding(from: croppedImage)
+                            print("  📊 Extracted embedding (size: \(embedding.count))")
+                            identified.embedding = embedding
+                            
+                            let dogId = tracker.identify(
+                                embedding: embedding,
+                                knownDogs: knownDogs,
+                                threshold: 0.5  // Lowered from 0.7 for testing
+                            )
+                            
+                            identified.dogId = dogId
+                            
+                            if let dogId = dogId,
+                               let dog = knownDogs.first(where: { $0.uuid == dogId }) {
+                                identified.dogName = dog.name
+                                print("🎉 MATCH FOUND! Dog ID: \(dogId), Name: \(dog.name ?? "unknown")")
+                            } else {
+                                print("❌ No match for detection #\(index) (similarity < threshold)")
+                            }
+                        } catch {
+                            print("⚠️ ReID failed for detection #\(index): \(error)")
+                        }
+                        
+                        // Thread-safe append
+                        syncQueue.sync {
+                            identifiedDetections.append(identified)
+                        }
+                        reIDGroup.leave()
+                    }
+                } else {
+                    if self.reidTracker == nil {
+                        print("⚠️ ReIDTracker is nil - cannot identify detection #\(index)")
+                    } else {
+                        print("⚠️ Could not crop detection #\(index)")
+                    }
+                    syncQueue.sync {
+                        identifiedDetections.append(identified)
+                    }
                 }
             }
-
-            await MainActor.run {
-                self.detectedDogs = dogStates
-            }
-        } catch {
-            await MainActor.run {
-                self.detectedDogs = []
+            
+            reIDGroup.notify(queue: .main) {
+                print("✨ ProcessFrame complete: \(identifiedDetections.count) detections processed")
+                for (idx, det) in identifiedDetections.enumerated() {
+                    print("  Detection #\(idx): dogName=\(det.dogName ?? "nil"), dogId=\(det.dogId?.uuidString ?? "nil")")
+                }
+                self.lastDetections = identifiedDetections
+                completion(identifiedDetections)
             }
         }
     }
-
-    func makePixelBuffer(from image: CGImage) -> CVPixelBuffer? {
-        let width = image.width
-        let height = image.height
-
-        var pixelBuffer: CVPixelBuffer?
-        let attributes: [CFString: Any] = [
-            kCVPixelBufferCGImageCompatibilityKey: true,
-            kCVPixelBufferCGBitmapContextCompatibilityKey: true,
-            kCVPixelBufferIOSurfacePropertiesKey: [:]
-        ]
-
-        let status = CVPixelBufferCreate(
-            kCFAllocatorDefault,
-            width,
-            height,
-            kCVPixelFormatType_32BGRA,
-            attributes as CFDictionary,
-            &pixelBuffer
+    
+    func analyzeWithVLM(
+        frameHistory: [UIImage],
+        detections: [DetectedObject],
+        knownDogs: [Dog]
+    ) async throws -> VisionResponse {
+        let recentFrames = Array(frameHistory.suffix(5))
+        let taggedFrames = recentFrames.map { frame in
+            imageTagger.tagImage(frame, detections: detections)
+        }
+        
+        let (response, _) = try await visionClient.analyzeStream(
+            images: taggedFrames,
+            dogs: knownDogs
         )
-
-        guard status == kCVReturnSuccess, let pixelBuffer else {
-            return nil
-        }
-
-        CVPixelBufferLockBaseAddress(pixelBuffer, [])
-        defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
-
-        guard let context = CGContext(
-            data: CVPixelBufferGetBaseAddress(pixelBuffer),
-            width: width,
-            height: height,
-            bitsPerComponent: 8,
-            bytesPerRow: CVPixelBufferGetBytesPerRow(pixelBuffer),
-            space: colorSpace,
-            bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
-        ) else {
-            return nil
-        }
-
-        context.draw(image, in: CGRect(x: 0, y: 0, width: CGFloat(width), height: CGFloat(height)))
-        return pixelBuffer
+        
+        return response
     }
+
+    // MARK: - Camera Session Configuration
+    
+    private func configureSession() {
+        sessionQueue.async { [weak self] in
+            guard let self, !self.isConfigured else { return }
+            
+            self.captureSession.beginConfiguration()
+            self.captureSession.sessionPreset = .vga640x480
+            
+            guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
+                print("Unable to access back camera")
+                self.captureSession.commitConfiguration()
+                return
+            }
+            
+            do {
+                let input = try AVCaptureDeviceInput(device: camera)
+                if self.captureSession.canAddInput(input) {
+                    self.captureSession.addInput(input)
+                }
+            } catch {
+                print("Camera input error: \(error)")
+            }
+            
+            self.videoOutput.alwaysDiscardsLateVideoFrames = true
+            self.videoOutput.videoSettings = [
+                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
+            ]
+            self.videoOutput.setSampleBufferDelegate(self, queue: self.processingQueue)
+            
+            if self.captureSession.canAddOutput(self.videoOutput) {
+                self.captureSession.addOutput(self.videoOutput)
+                self.videoOutput.connection(with: .video)?.videoOrientation = .portrait
+            }
+            
+            self.captureSession.commitConfiguration()
+            self.isConfigured = true
+        }
+    }
+    
+    private func makeDisplayImage(from pixelBuffer: CVPixelBuffer) -> CGImage? {
+        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+        let extent = ciImage.extent.integral
+        guard extent.width > 0, extent.height > 0 else { return nil }
+
+        var imageForDisplay = ciImage
+        if extent.width > targetPreviewWidth, targetPreviewWidth > 0 {
+            let scale = targetPreviewWidth / extent.width
+            let transform = CGAffineTransform(scaleX: scale, y: scale)
+            imageForDisplay = ciImage.transformed(by: transform)
+        }
+
+        let outputRect = imageForDisplay.extent.integral
+        return ciContext.createCGImage(imageForDisplay, from: outputRect)
+    }
+
+    // MARK: - Helpers
 
     func rectForCropping(from boundingBox: CGRect, imageSize: CGSize) -> CGRect? {
         guard imageSize.width > 0, imageSize.height > 0 else { return nil }
@@ -221,7 +343,7 @@ private extension VisionService {
         matchedDog: Dog?,
         normalizedBounds: CGRect
     ) -> DogState {
-        let identifier = matchedDog.map(deterministicIdentifier(for:)) ?? UUID()
+        let identifier = matchedDog?.uuid ?? UUID()
         let displayName = matchedDog?.name ?? detection.label.capitalized
 
         return DogState(
@@ -231,26 +353,6 @@ private extension VisionService {
             action: "Standing",
             confidence: detection.confidence
         )
-    }
-
-    func deterministicIdentifier(for dog: Dog) -> UUID {
-        let uriString = dog.objectID.uriRepresentation().absoluteString
-        let hash = SHA256.hash(data: Data(uriString.utf8))
-        var bytes = Array(hash.prefix(16))
-
-        if bytes.count < 16 {
-            bytes.append(contentsOf: Array(repeating: 0, count: 16 - bytes.count))
-        }
-
-        return bytes.withUnsafeBytes { rawBuffer in
-            let buffer = rawBuffer.bindMemory(to: UInt8.self)
-            return UUID(uuid: (
-                buffer[0], buffer[1], buffer[2], buffer[3],
-                buffer[4], buffer[5], buffer[6], buffer[7],
-                buffer[8], buffer[9], buffer[10], buffer[11],
-                buffer[12], buffer[13], buffer[14], buffer[15]
-            ))
-        }
     }
 
     func fetchKnownDogs() async -> [Dog] {

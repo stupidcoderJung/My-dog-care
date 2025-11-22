@@ -1,121 +1,130 @@
-# AI 통합 및 데이터 파이프라인 비전
+# AI 통합 및 데이터 파이프라인 비전 (하이브리드 엣지-클라우드 + 블랙박스 + VLM)
 
 ## 🎯 프로젝트 비전
-이 프로젝트의 목표는 **포괄적인 AI 반려견 케어 어시스턴트**를 구축하는 것입니다.
-1.  **데이터 소스 ("On Air")**: 앱은 "On Air" 기능을 통해 실시간 데이터(비디오 스트림, 행동 분석, 활동 로그)를 캡처합니다.
-2.  **데이터 수집 (Ingestion)**: 이 데이터는 서버로 스트리밍되어 반려견의 삶에 대한 역사적 기록으로 저장됩니다.
-3.  **AI 인터페이스 ("Chat")**: 사용자는 AI Chat을 통해 이 데이터와 상호 작용합니다. AI는 **데이터 분석가이자 수의사** 역할을 하며, *"오늘 벨라가 얼마나 잤어?"* 또는 *"이번 주 활동 그래프를 보여줘"*와 같은 질문에 답할 수 있습니다.
+**MyDogCare**는 **멀티모달 반려견 메모리 서비스 (블랙박스 + 시계열 분석)**입니다.
+온디바이스 AI(YOLO + ReID)를 사용하여 실시간으로 여러 마리의 강아지를 추적하고, 중요한 순간을 "증거 클립"으로 기록하며, 매초의 데이터를 구조화된 시계열로 저장합니다. 사용자는 자연어로 **차트, 전문가 분석, 증거 영상**을 함께 조회할 수 있습니다.
 
-## 🏗️ 아키텍처 계획
+**핵심 아키텍처**:
+*   **듀얼 디바이스 구성**:
+    *   **카메라 디바이스 (Sender)**: 집에 두는 전용 iPhone으로 "On Air" 모드 실행 (YOLO + ReID + State Packet + Clip Trigger).
+    *   **뷰어 디바이스 (Receiver)**: 사용자가 들고 다니는 개인 iPhone으로 채팅, 차트, 캘린더, 리포트 확인.
+*   **블랙박스 메모리**: 단순 통계가 아닌 **시계열 팩트 + 비디오 증거**.
+*   **AI 분석가**: 다중 전문가 에이전트 (데이터 분석가 + 수의사 + 행동학자)로 **차트**, **전문적 조언**, **증거 클립**을 제공.
+*   **VLM (Gemini 2.5 Pro)**: 자동 라벨링 및 학습 데이터 생성용 (실시간 질의에는 직접 사용하지 않음).
 
-이를 달성하기 위해 원시 데이터를 LLM과 연결하는 백엔드 인프라가 필요합니다.
+---
 
-### 1. 데이터 파이프라인 ("눈")
-*   **클라이언트 (iOS)**: `OnAirView`는 비디오 프레임(Vision 프레임워크 또는 로컬 VLM 사용)을 분석하고 구조화된 이벤트를 추출합니다.
-    *   *데이터 예시*: `{ "timestamp": "2023-10-27T10:00:00Z", "event": "sleeping", "confidence": 0.95 }`
-*   **수집 API**: 이러한 로그를 실시간으로 수신하기 위한 경량 서버 엔드포인트(예: `POST /api/events`).
-*   **데이터베이스**:
-    *   타임스탬프가 있는 활동 로그를 저장하는 데는 **시계열 DB**(예: InfluxDB, TimescaleDB) 또는 **NoSQL**(Firestore, MongoDB)이 가장 적합합니다.
+## 🏗️ 아키텍처 개요
 
-### 2. AI 서비스 ("두뇌")
-이것은 구축해야 할 핵심 서비스입니다. Chat UI와 데이터베이스 사이에 위치합니다.
+### 1. 온디바이스 (카메라 모드)
+*   **역할**: 눈 & 반사신경.
+*   **기술 스택**: CoreML (YOLOv11/v12), Swift, ReID, 경량 Behavior/Stress 헤드.
+*   **파이프라인**:
+    1.  **감지 및 추적**: YOLO + ReID (One-shot).
+    2.  **행동 및 스트레스 분석**: 경량 온디바이스 모델:
+        *   **행동 분류기**: 최근 프레임 히스토리(bbox 궤적, 속도, 방향)를 분석하여 행동 확률 예측.
+        *   **스트레스 프록시 헤드**: 행동 패턴 및 움직임 통계로부터 스트레스 수준 (0~1) 추정.
+    3.  **상태 로깅**: 매초 `DeviceStatePacket` 생성:
+        *   `dogs: [DogState]` — 정규화된 bbox, 속도, 방향, 행동 확률, 스트레스 수치.
+        *   `relations: [PairState]` — 강아지 쌍 간 거리, 친화도, 긴장도.
+        *   `environment: EnvironmentState` — 조도, 데시벨, 혼잡도.
+    4.  **클립 트리거 (블랙박스)**:
+        *   **행동 피크**: 놀이/추격 확률 급상승 (> 0.8).
+        *   **관계 변화**: 긴장도 또는 친화도 급변.
+        *   **위험 이벤트**: `risk_score` 임계치 초과.
+    4.  **업로드**: 상태 패킷(10초마다 배치) 및 증거 클립(MP4)을 서버로 전송.
 
-#### 추천 스택: **Python Backend (FastAPI)**
-Python은 AI/데이터 엔지니어링의 표준입니다.
-*   **프레임워크**: FastAPI (고성능, API 구축 용이).
-*   **LLM 오케스트레이션**: LangChain 또는 LlamaIndex.
-*   **모델**: GPT-4o 또는 Gemini 1.5 Pro (강력한 추론 능력과 큰 컨텍스트 윈도우를 가진 모델).
+### 2. 백엔드 서버 (기억)
+*   **역할**: 중앙 집중식 저장 및 인덱싱.
+*   **기술 스택**: Python (FastAPI), TimescaleDB, S3/MinIO, Vector DB (Milvus), Redis.
+*   **데이터 저장소**:
+    *   **사실 (TimescaleDB Hypertables)**:
+        *   `dog_states`: 개별 강아지 시계열 (bbox, 속도, 행동, 스트레스).
+        *   `pair_relations`: 강아지 쌍 시계열 (거리, 친화도, 긴장도).
+        *   `risk_events`: 감지된 위험 사건.
+    *   **증거 (S3/MinIO)**: 비디오 클립(`.mp4`) 및 썸네일.
+    *   **의미 (Vector DB)**: 의미론적 검색을 위한 클립 임베딩.
 
-### 3. "실행 가능한 코드" 워크플로우
-그래프를 보여주기 위해 AI는 숫자를 환각(hallucinate)해서는 안 됩니다. **실제 데이터를 쿼리**해야 합니다.
+### 3. LLM 레이어 (두뇌)
+*   **역할**: 계획(Planner), 분석(Analyzer - 데이터+수의학+행동학), 발표(Presenter).
+*   **워크플로우**:
+    1.  **Planner**: 사용자 질문 -> 검색 계획 (시간 범위, 필터, 메트릭, 의미론적 쿼리).
+    2.  **Analyzer (Data)**: TimescaleDB SQL 실행으로 통계 집계 및 이상 징후 탐지.
+    3.  **Analyzer (Expert)**: 수의학/행동학 지식으로 통계 해석.
+    4.  **Analyzer (Evidence)**: Vector DB에서 진단을 뒷받침할 관련 비디오 클립 검색.
+    5.  **Presenter**: 요약 + **차트 (Chart.js Spec)** + **증거 카드** (Top-3 클립) 생성.
 
-1.  **사용자 쿼리**: "지난 7일간의 활동 그래프를 보여줘."
-2.  **함수 호출 (Function Calling - 마법의 핵심)**:
-    *   LLM은 데이터가 필요함을 인식하고 정의된 도구를 호출합니다: `get_activity_stats(days=7)`.
-    *   백엔드는 이 SQL/데이터베이스 쿼리를 실행합니다.
-    *   **결과**: JSON 데이터 반환 `[{day: "Mon", active_hours: 4}, ...]`.
-3.  **코드 생성 / 시각화**:
-    *   LLM은 JSON을 받습니다.
-    *   이 실제 데이터로 채워진 **HTML/Chart.js 코드**(우리가 `ChatView`에 구현한 것)를 생성합니다.
-    *   **응답**: iOS 앱은 HTML 문자열을 수신하고 `GraphWebView`에서 렌더링합니다.
+### 4. VLM 레이어 (Gemini 2.5 Pro - "선생님")
+*   **역할**: 자동 라벨링 및 학습 데이터 생성.
+*   **워크플로우**:
+    1.  **Hard Example Mining**: 낮은 신뢰도 감지 또는 흥미로운 클립 선택.
+    2.  **VLM 주석**: Gemini 2.5 Pro에 구조화된 프롬프트로 요청:
+        *   캡션, 장면 태그, 개별 강아지 행동/감정, 상호작용 유형, 위험 추정.
+    3.  **라벨 저장**: Behavior/Relation/Risk 모델 및 QA LLM 파인튜닝용 학습 데이터로 저장.
+    4.  **지속적 개선**: 축적된 라벨로 분기별 모델 재학습.
 
-## 🧠 전문가 VLM 전략 및 데이터 스키마
+---
 
-반려견을 진정으로 이해하려면 단순한 "먹기/자기" 라벨을 넘어서야 합니다. 우리는 VLM 프롬프트 엔지니어링에 **다중 전문가 접근 방식(Multi-Expert Approach)**을 활용할 것입니다.
+## 📊 상세 데이터 전략 요약
 
-### A. 비전 모델 전문가 ("관찰자")
-건강과 기분을 나타내는 세밀한 시각적 세부 정보를 추출해야 합니다.
-*   **프롬프트 추가 사항**:
-    *   **자세 (Posture)**: `standing`(서기), `sitting`(앉기), `lying_side`(옆으로 눕기), `lying_belly`(배 깔고 눕기), `curled`(웅크리기), `sploot`(다리 뻗고 엎드리기).
-    *   **감정 지표 (Emotional Indicators)**: `tail_wagging`(꼬리 흔들기), `tail_tucked`(꼬리 말기), `ears_erect`(귀 세우기), `ears_flat`(귀 젖히기), `panting`(헉헉거림), `yawning`(하품), `whale_eye`(흰자위 보임).
-    *   **건강 신호 (Health Signals)**: `limping`(절뚝거림), `scratching_excessive`(과도한 긁기), `shaking`(떨림), `vomiting`(구토), `head_tilt`(고개 갸웃).
-    *   **컨텍스트 (Context)**: `near_food_bowl`(밥그릇 근처), `near_door`(문 근처), `on_bed`(침대 위), `on_floor`(바닥 위).
+### 온디바이스 데이터 구조
+*   `DetectedObject`: YOLO 출력 (bbox, confidence, trackId, embedding).
+*   `DogState`: 정규화된 상태 (bbox, 속도, 행동 확률, 스트레스).
+*   `PairState`: 강아지 쌍 관계 (거리, 친화도, 긴장도).
+*   `DeviceStatePacket`: 매초 생성되는 종합 패킷.
 
-### B. 시계열 데이터베이스 전문가 ("역사가")
-시간적 맥락 없는 데이터는 쓸모가 없습니다.
-*   **저장 전략**:
-    *   **InfluxDB / TimescaleDB**: 고빈도 이벤트 저장 (초당 1 이벤트).
-    *   **집계 (Aggregation)**: 장기 추세 분석을 위해 데이터를 "5분 버킷" 등으로 다운샘플링 (예: "시간당 평균 활동 수준").
-    *   **이상 탐지 (Anomaly Detection)**: 통계적 방법(Z-score)을 사용하여 편차 감지. *예: "벨라는 보통 14시간을 자는데, 오늘은 18시간을 잤습니다."*
+### 서버 데이터 스키마 (TimescaleDB)
+*   `dog_states` (Hypertable): 개별 강아지 시계열.
+*   `pair_relations` (Hypertable): 강아지 쌍 관계 시계열.
+*   `risk_events`: 위험 사건 기록.
+*   `clips`: 증거 영상 메타데이터.
 
-### C. 벡터 데이터베이스 전문가 ("기억")
-정성적 데이터("메모" 및 "설명")를 위한 것입니다.
-*   **기술**: **FAISS** 또는 **Pinecone**.
-*   **사용법**: `notes` 필드(예: "벨라가 슬퍼 보이고 문을 쳐다보고 있음")를 임베딩합니다.
-*   **쿼리**: 사용자가 "요즘 벨라가 외로워 보였어?"라고 물으면, 시스템은 벡터 공간에서 의미적으로 유사한 과거 이벤트를 검색합니다.
+---
 
-### D. 비즈니스 모델 전문가 ("전략가")
-데이터를 가치로 전환합니다.
-*   **건강 알림**: "오늘 과도한 긁기 5회 감지됨" -> **푸시 알림**: "벼룩/알레르기 확인 필요."
-*   **소모품**: "물그릇 비움" 반복 감지 -> **추천**: "자동 급수기 구매 추천."
-*   **수의사 리포트**: "30일 활동 및 증상 로그 내보내기" -> 수의사 방문을 위한 **프리미엄 기능**.
+## 🚀 구현 로드맵 (요약)
 
-## 📝 향상된 JSON 스키마 (목표)
-VLM은 다음과 같은 더 풍부한 구조를 출력해야 합니다:
+### Phase 0: Bootstrap (VLM 데이터 수집) - **초기 1달**
+**목적**: Behavior/Stress 모델 학습을 위한 데이터를 VLM 실시간 사용으로 수집.
+*   **강화된 파이프라인**: 카메라 → **YOLO 감지** → **ReID 식별** → 태깅된 이미지 스트리밍 → 5 프레임 → VLM 분석
+    *   **이유**: VLM에게 사전 식별된 강아지 정보(name, bbox)를 컨텍스트로 제공하여 더 정확한 행동 분석.
+    *   **구현**: OnAirView가 YOLO+ReID 처리 후 감지된 강아지 이름을 이미지에 오버레이, 태깅된 프레임을 VisionClient로 전송.
+*   **VLM 사용**: 기존 `VisionClient.swift`가 태깅된 프레임 분석 및 `VisionResponse` 출력 (posture, action, emotion).
+*   **데이터 로깅**: VLM 분석 결과를 `vlm_analysis_{date}.jsonl` 형태로 저장 및 백엔드 업로드.
+*   **백엔드 저장**: TimescaleDB `vlm_training_samples` 테이블 + S3/MinIO 이미지.
+*   **큐레이션**: Low-confidence 필터링, 중복 제거, ~10k 학습 샘플 준비.
+*   **전환**: 1달 후 → Behavior/Stress 모델 학습 → 디바이스 배포 → VLM 비활성화.
 
-```json
-{
-  "timestamp": "ISO8601",
-  "subject": {
-    "name": "Bella",
-    "confidence": 0.98
-  },
-  "behavior": {
-    "primary_action": "rest",
-    "posture": "lying_side",
-    "intensity": "low"
-  },
-  "health": {
-    "symptom": "none", // 또는 "limping"(절뚝거림), "scratching"(긁기)
-    "severity": 0
-  },
-  "emotion": {
-    "mood": "relaxed", // 꼬리/귀에서 추론
-    "indicators": ["eyes_closed", "breathing_slow"]
-  },
-  "context": {
-    "location": "living_room_bed",
-    "objects_nearby": ["toy_bone"]
-  },
-  "notes": "Bella is sleeping deeply on her side, occasional twitching (dreaming)."
-}
-```
+### Priority 0: 온디바이스 지능 (카메라 모드)
+*   **핵심 모델**: 
+    *   **YOLO**: YOLOv11/v12-nano 객체 감지 (CoreML)
+    *   **ReID**: ResNet50 특징 추출기 (CoreML)
+    *   **행동 분류기**: 경량 MLP/1D-CNN 행동 분류
+        *   입력: 최근 N프레임 bbox 궤적 (모션 벡터)
+        *   출력: `behaviorProbs` - {"play": 0.8, "rest": 0.1, "chase": 0.05, ...}
+        *   구현 위치: `Services/Vision/BehaviorHead.swift`
+    *   **스트레스 프록시 헤드**: 소형 회귀 모델
+        *   입력: 행동 확률 + 움직임 통계
+        *   출력: `stressProxy` (0~1)
+        *   구현: 간단한 MLP 또는 규칙 기반 + 보정 네트워크
+*   **데이터 구조**: `DetectedObject`, `DogState`, `PairState`, `DeviceStatePacket`.
+*   **상태 파이프라인**: YOLO -> ReID -> Behavior/Stress Head -> StateBuilder -> EventUploader.
 
-## 🚀 구현 로드맵
+### Phase 1: 로컬 기반 & 듀얼 모드
+*   **듀얼 모드 UI**: 카메라 모드 vs 뷰어 모드 전환기.
+*   **강아지 프로필 동기화**: 백엔드와 Up/Down 동기화.
+*   **On Air UI**: 라벨 및 액션이 포함된 바운딩 박스 오버레이.
 
-### 1단계: 서버 설정 (MVP)
-- [ ] 간단한 Python FastAPI 서버 설정.
-- [ ] "On Air" 이벤트를 저장할 데이터베이스(예: Supabase/PostgreSQL) 생성.
-- [ ] iOS 앱이 데이터를 업로드할 API 엔드포인트 `POST /events` 생성.
+### Phase 2: 백엔드 인프라 (기억)
+*   **서버 설정**: FastAPI + Docker Compose (TimescaleDB, Milvus, MinIO, Redis).
+*   **데이터베이스 스키마**: `dog_states` 및 `pair_relations` Hypertables.
+*   **수집 API**: 비동기 대량 삽입을 사용하는 `POST /events/batch`.
 
-### 2단계: AI 에이전트 설정
-- [ ] Python 서버에 OpenAI 또는 Gemini API 통합.
-- [ ] LLM을 위한 **도구(Tools)** 정의 (예: `query_database`).
-- [ ] 사용자 텍스트를 받아 AI 응답(텍스트 또는 그래프 HTML)을 반환하는 `/chat` 엔드포인트 구현.
+### Phase 3: 지능 (두뇌)
+*   **클립 녹화**: 트리거 기반 녹화가 포함된 순환 버퍼.
+*   **분석 API**: 차트용 시계열 쿼리.
+*   **LLM 에이전트**: Planner + Analyzer (Data + Expert) + Presenter.
 
-### 3단계: 연결
-- [ ] iOS 앱의 `ChatService.swift`를 Mock 서비스 대신 실제 Python 백엔드에 연결.
-
-## 💡 구축(Build) vs 구매(Buy)?
-*   **구축 (권장)**: **FastAPI + LangChain + OpenAI/Gemini**를 사용하면 데이터와 "그래프 생성" 로직에 대한 완전한 제어권을 가질 수 있습니다. "실행 가능한 코드" 요구 사항에 가장 유연합니다.
-*   **구매 (관리형)**: **Firebase Genkit** 또는 **Supabase Edge Functions** 같은 플랫폼은 인프라를 단순화할 수 있지만, 전용 Python 백엔드에 비해 복잡한 "코드 인터프리터" 스타일의 기능을 구현하기 더 어려울 수 있습니다.
+### Phase 3.5: VLM 자동 라벨링 (Gemini 2.5 Pro)
+*   **주석 스키마**: 클립을 위한 구조화된 JSON 라벨.
+*   **Hard Example Mining**: 불확실한 감지 선택.
+*   **학습 데이터 루프**: 라벨 저장 -> 모델 재학습.

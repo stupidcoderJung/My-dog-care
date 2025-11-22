@@ -22,6 +22,7 @@ struct DogAnalysis: Codable {
     let action: String
     let emotion: String
     let health_signals: [String]
+    let notes: String?
 }
 
 struct VisionEnvironment: Codable {
@@ -98,7 +99,7 @@ final class VisionClient: ObservableObject {
     
     func analyzeStream(images: [UIImage], dogs: [Dog]) async throws -> (response: VisionResponse, debugTurns: [DebugTurn]) {
         // 1. System Prompt
-        let systemPrompt = "You are an intelligent video analysis assistant. Your job is to analyze images and output structured JSON data."
+        let systemPrompt = "You are an expert Veterinary Behaviorist AI. Your task is to analyze video frames to detect dog health, behavior, and emotions with high precision. You MUST output valid JSON only."
         
         var messages: [[String: Any]] = [
             ["role": "system", "content": systemPrompt]
@@ -154,11 +155,13 @@ final class VisionClient: ObservableObject {
         
         let finalUserPrompt = """
         Analyze the attached sequence of images.
-        Context: The following dogs are known: \(dogNamesString).
+        **IMPORTANT**: Each detected dog has its NAME labeled above the bounding box.
+        Please use these EXACT NAMES in your response.
+        Context: Known dogs are: \(dogNamesString).
         
-        Task:
-        1. Identify if any of the known dogs are present.
-        2. Analyze their posture, action, emotion, and health signals.
+        For each dog visible in the images:
+        1. Use the NAME shown on the image (in the green or red box)
+        2. Analyze posture, action, emotion, health_signals
         3. Analyze the environment.
         
         IMPORTANT:
@@ -178,7 +181,8 @@ final class VisionClient: ObservableObject {
               "posture": "String (standing, sitting, lying_side, lying_belly, curled, sploot)",
               "action": "String (sleeping, eating, drinking, playing, walking, grooming, idle)",
               "emotion": "String (relaxed, tail_wagging, ears_flat, panting, whale_eye, anxious)",
-              "health_signals": ["String (limping, scratching, vomiting, shaking, none)"]
+              "health_signals": ["String (limping, scratching, vomiting, shaking, none)"],
+              "notes": "String (Brief qualitative description of behavior, e.g., 'Sleeping deeply with occasional twitching')"
             }
           ],
           "environment": {
@@ -197,7 +201,8 @@ final class VisionClient: ObservableObject {
               "posture": "sitting",
               "action": "idle",
               "emotion": "relaxed",
-              "health_signals": ["none"]
+              "health_signals": ["none"],
+              "notes": "Sitting calmly near the door, looking attentive."
             }
           ],
           "environment": {

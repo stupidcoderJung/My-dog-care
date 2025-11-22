@@ -18,6 +18,16 @@
 		A775EF762ED124170030EDB3 /* AddCareEventSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EF742ED124170030EDB3 /* AddCareEventSheet.swift */; };
 		A775EF772ED124170030EDB3 /* CareCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EF752ED124170030EDB3 /* CareCalendarView.swift */; };
 		A775EF792ED124300030EDB3 /* CareEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EF782ED124300030EDB3 /* CareEvent.swift */; };
+		A775EF862ED2032C0030EDB3 /* DetectionOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EF842ED2032C0030EDB3 /* DetectionOverlay.swift */; };
+		A775EF8D2ED203400030EDB3 /* YOLOClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EF8B2ED203400030EDB3 /* YOLOClient.swift */; };
+		A775EF8E2ED203400030EDB3 /* ImageTagger.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EF872ED203400030EDB3 /* ImageTagger.swift */; };
+		A775EF8F2ED203400030EDB3 /* ReIDTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EF882ED203400030EDB3 /* ReIDTracker.swift */; };
+		A775EF902ED203400030EDB3 /* VisionService+Verification.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EF8A2ED203400030EDB3 /* VisionService+Verification.swift */; };
+		A775EF912ED203400030EDB3 /* VisionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EF892ED203400030EDB3 /* VisionService.swift */; };
+		A775EF942ED203850030EDB3 /* DetectedObject.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EF922ED203850030EDB3 /* DetectedObject.swift */; };
+		A775EF952ED203850030EDB3 /* Dog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EF932ED203850030EDB3 /* Dog.swift */; };
+		A775EFBA2ED20A860030EDB3 /* yolo11n.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = A775EFB72ED20A860030EDB3 /* yolo11n.mlpackage */; };
+		A775EFBB2ED20A860030EDB3 /* ResNet50_ReID.mlmodel in Sources */ = {isa = PBXBuildFile; fileRef = A775EFB62ED20A860030EDB3 /* ResNet50_ReID.mlmodel */; };
 		A79FE2802EC604F40069D557 /* Clerk in Frameworks */ = {isa = PBXBuildFile; productRef = A79FE27F2EC604F40069D557 /* Clerk */; };
 		D2E0A7202C9D4D2600A1A1A1 /* MyDogCareApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A7102C9D4C5E00A1A1A1 /* MyDogCareApp.swift */; };
 		D2E0A7212C9D4D2600A1A1A1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A7112C9D4C5E00A1A1A1 /* ContentView.swift */; };
@@ -60,6 +70,16 @@
 		A775EF742ED124170030EDB3 /* AddCareEventSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddCareEventSheet.swift; sourceTree = "<group>"; };
 		A775EF752ED124170030EDB3 /* CareCalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareCalendarView.swift; sourceTree = "<group>"; };
 		A775EF782ED124300030EDB3 /* CareEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareEvent.swift; sourceTree = "<group>"; };
+		A775EF842ED2032C0030EDB3 /* DetectionOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetectionOverlay.swift; sourceTree = "<group>"; };
+		A775EF872ED203400030EDB3 /* ImageTagger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageTagger.swift; sourceTree = "<group>"; };
+		A775EF882ED203400030EDB3 /* ReIDTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReIDTracker.swift; sourceTree = "<group>"; };
+		A775EF892ED203400030EDB3 /* VisionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionService.swift; sourceTree = "<group>"; };
+		A775EF8A2ED203400030EDB3 /* VisionService+Verification.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VisionService+Verification.swift"; sourceTree = "<group>"; };
+		A775EF8B2ED203400030EDB3 /* YOLOClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YOLOClient.swift; sourceTree = "<group>"; };
+		A775EF922ED203850030EDB3 /* DetectedObject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetectedObject.swift; sourceTree = "<group>"; };
+		A775EF932ED203850030EDB3 /* Dog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dog.swift; sourceTree = "<group>"; };
+		A775EFB62ED20A860030EDB3 /* ResNet50_ReID.mlmodel */ = {isa = PBXFileReference; lastKnownFileType = file.mlmodel; path = ResNet50_ReID.mlmodel; sourceTree = "<group>"; };
+		A775EFB72ED20A860030EDB3 /* yolo11n.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = yolo11n.mlpackage; sourceTree = "<group>"; };
 		B59485244961436191C9F1060CFA2E0E /* ModelRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelRegistry.swift; sourceTree = "<group>"; };
 		D2E0A7042C9D4C1200A1A1A1 /* MyDogCare.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyDogCare.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D2E0A7102C9D4C5E00A1A1A1 /* MyDogCareApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyDogCareApp.swift; sourceTree = "<group>"; };
@@ -92,11 +112,49 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		A775EF852ED2032C0030EDB3 /* Vision */ = {
+			isa = PBXGroup;
+			children = (
+				A775EF842ED2032C0030EDB3 /* DetectionOverlay.swift */,
+			);
+			path = Vision;
+			sourceTree = "<group>";
+		};
+		A775EF8C2ED203400030EDB3 /* Vision */ = {
+			isa = PBXGroup;
+			children = (
+				A775EF872ED203400030EDB3 /* ImageTagger.swift */,
+				A775EF882ED203400030EDB3 /* ReIDTracker.swift */,
+				A775EF892ED203400030EDB3 /* VisionService.swift */,
+				A775EF8A2ED203400030EDB3 /* VisionService+Verification.swift */,
+				A775EF8B2ED203400030EDB3 /* YOLOClient.swift */,
+			);
+			path = Vision;
+			sourceTree = "<group>";
+		};
+		A775EFB82ED20A860030EDB3 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				A775EFB62ED20A860030EDB3 /* ResNet50_ReID.mlmodel */,
+				A775EFB72ED20A860030EDB3 /* yolo11n.mlpackage */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		A775EFB92ED20A860030EDB3 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				A775EFB82ED20A860030EDB3 /* Models */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
 		D2E0A7012C9D4C1200A1A1A1 = {
 			isa = PBXGroup;
 			children = (
 				D2E0A70F2C9D4C5E00A1A1A1 /* MyDogCare */,
 				D2E0A7062C9D4C1200A1A1A1 /* Products */,
+				A775EFB92ED20A860030EDB3 /* Resources */,
 			);
 			sourceTree = "<group>";
 		};
@@ -126,6 +184,7 @@
 		D2E0A72B2C9D4D8300A1A1A1 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				A775EF852ED2032C0030EDB3 /* Vision */,
 				A775EF742ED124170030EDB3 /* AddCareEventSheet.swift */,
 				A775EF752ED124170030EDB3 /* CareCalendarView.swift */,
 				A775EF722ED07CD70030EDB3 /* GraphWebView.swift */,
@@ -154,6 +213,7 @@
 		D2E0A72D2C9D4D8300A1A1A1 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				A775EF8C2ED203400030EDB3 /* Vision */,
 				A775EF6E2ED07C4B0030EDB3 /* ChatService.swift */,
 				A775EF682ED0385A0030EDB3 /* CameraManager.swift */,
 				D2E0A7172C9D4C5E00A1A1A1 /* ClerkAuthService.swift */,
@@ -166,6 +226,8 @@
 		D2E0A72E2C9D4D8300A1A1A1 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				A775EF922ED203850030EDB3 /* DetectedObject.swift */,
+				A775EF932ED203850030EDB3 /* Dog.swift */,
 				A775EF782ED124300030EDB3 /* CareEvent.swift */,
 				A775EF702ED07CC00030EDB3 /* ChatMessage.swift */,
 				D2E0A7312C9D4D8300A1A1A1 /* MyDogCare.xcdatamodeld */,
@@ -248,9 +310,13 @@
 				A775EF712ED07CC00030EDB3 /* ChatMessage.swift in Sources */,
 				A775EF6D2ED07C330030EDB3 /* ChatView.swift in Sources */,
 				A775EF762ED124170030EDB3 /* AddCareEventSheet.swift in Sources */,
+				A775EFBA2ED20A860030EDB3 /* yolo11n.mlpackage in Sources */,
+				A775EFBB2ED20A860030EDB3 /* ResNet50_ReID.mlmodel in Sources */,
 				A775EF772ED124170030EDB3 /* CareCalendarView.swift in Sources */,
 				D2E0A7202C9D4D2600A1A1A1 /* MyDogCareApp.swift in Sources */,
 				D2E0A7212C9D4D2600A1A1A1 /* ContentView.swift in Sources */,
+				A775EF942ED203850030EDB3 /* DetectedObject.swift in Sources */,
+				A775EF952ED203850030EDB3 /* Dog.swift in Sources */,
 				A775EF732ED07CD70030EDB3 /* GraphWebView.swift in Sources */,
 				D2E0A7222C9D4D2600A1A1A1 /* LoadingView.swift in Sources */,
 				D2E0A7232C9D4D2600A1A1A1 /* MainView.swift in Sources */,
@@ -258,7 +324,13 @@
 				D2E0A7252C9D4D2600A1A1A1 /* AsyncAvatarView.swift in Sources */,
 				D2E0A7262C9D4D2600A1A1A1 /* AuthViewModel.swift in Sources */,
 				D2E0A7272C9D4D2600A1A1A1 /* ClerkAuthService.swift in Sources */,
+				A775EF8D2ED203400030EDB3 /* YOLOClient.swift in Sources */,
+				A775EF8E2ED203400030EDB3 /* ImageTagger.swift in Sources */,
+				A775EF8F2ED203400030EDB3 /* ReIDTracker.swift in Sources */,
+				A775EF902ED203400030EDB3 /* VisionService+Verification.swift in Sources */,
+				A775EF912ED203400030EDB3 /* VisionService.swift in Sources */,
 				D2E0A7292C9D4D8300A1A1A1 /* MyDogCare.xcdatamodeld in Sources */,
+				A775EF862ED2032C0030EDB3 /* DetectionOverlay.swift in Sources */,
 				D2E0A7332C9D50A400A1A1A1 /* DogListView.swift in Sources */,
 				A775EF6B2ED038660030EDB3 /* OnAirView.swift in Sources */,
 				5FD3C2AB2F1C123400FEDCBA /* DogDetailView.swift in Sources */,

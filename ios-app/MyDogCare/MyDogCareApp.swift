@@ -4,7 +4,7 @@ import SwiftData
 @main
 struct MyDogCareApp: App {
     @StateObject private var authViewModel = AuthViewModel()
-    @StateObject private var visionClient = VisionClient()
+    @StateObject private var visionService = VisionService()
     private let persistenceController = PersistenceController.shared
     @Environment(\.scenePhase) private var scenePhase
 
@@ -12,7 +12,7 @@ struct MyDogCareApp: App {
         WindowGroup {
             RootView()
                 .environmentObject(authViewModel)
-                .environmentObject(visionClient)
+                .environmentObject(visionService)
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .modelContainer(for: CareEvent.self)
                 .task {
