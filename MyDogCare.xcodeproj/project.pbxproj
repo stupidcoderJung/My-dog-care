@@ -15,6 +15,9 @@
 		A775EF6F2ED07C4B0030EDB3 /* ChatService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EF6E2ED07C4B0030EDB3 /* ChatService.swift */; };
 		A775EF712ED07CC00030EDB3 /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EF702ED07CC00030EDB3 /* ChatMessage.swift */; };
 		A775EF732ED07CD70030EDB3 /* GraphWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EF722ED07CD70030EDB3 /* GraphWebView.swift */; };
+		A775EF762ED124170030EDB3 /* AddCareEventSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EF742ED124170030EDB3 /* AddCareEventSheet.swift */; };
+		A775EF772ED124170030EDB3 /* CareCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EF752ED124170030EDB3 /* CareCalendarView.swift */; };
+		A775EF792ED124300030EDB3 /* CareEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EF782ED124300030EDB3 /* CareEvent.swift */; };
 		A79FE2802EC604F40069D557 /* Clerk in Frameworks */ = {isa = PBXBuildFile; productRef = A79FE27F2EC604F40069D557 /* Clerk */; };
 		D2E0A7202C9D4D2600A1A1A1 /* MyDogCareApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A7102C9D4C5E00A1A1A1 /* MyDogCareApp.swift */; };
 		D2E0A7212C9D4D2600A1A1A1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A7112C9D4C5E00A1A1A1 /* ContentView.swift */; };
@@ -54,6 +57,9 @@
 		A775EF6E2ED07C4B0030EDB3 /* ChatService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatService.swift; sourceTree = "<group>"; };
 		A775EF702ED07CC00030EDB3 /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
 		A775EF722ED07CD70030EDB3 /* GraphWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GraphWebView.swift; sourceTree = "<group>"; };
+		A775EF742ED124170030EDB3 /* AddCareEventSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddCareEventSheet.swift; sourceTree = "<group>"; };
+		A775EF752ED124170030EDB3 /* CareCalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareCalendarView.swift; sourceTree = "<group>"; };
+		A775EF782ED124300030EDB3 /* CareEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareEvent.swift; sourceTree = "<group>"; };
 		B59485244961436191C9F1060CFA2E0E /* ModelRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelRegistry.swift; sourceTree = "<group>"; };
 		D2E0A7042C9D4C1200A1A1A1 /* MyDogCare.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyDogCare.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D2E0A7102C9D4C5E00A1A1A1 /* MyDogCareApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyDogCareApp.swift; sourceTree = "<group>"; };
@@ -120,6 +126,8 @@
 		D2E0A72B2C9D4D8300A1A1A1 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				A775EF742ED124170030EDB3 /* AddCareEventSheet.swift */,
+				A775EF752ED124170030EDB3 /* CareCalendarView.swift */,
 				A775EF722ED07CD70030EDB3 /* GraphWebView.swift */,
 				A775EF6C2ED07C330030EDB3 /* ChatView.swift */,
 				A775EF6A2ED038660030EDB3 /* OnAirView.swift */,
@@ -158,6 +166,7 @@
 		D2E0A72E2C9D4D8300A1A1A1 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				A775EF782ED124300030EDB3 /* CareEvent.swift */,
 				A775EF702ED07CC00030EDB3 /* ChatMessage.swift */,
 				D2E0A7312C9D4D8300A1A1A1 /* MyDogCare.xcdatamodeld */,
 				D2E0A73B2C9D5F5200A1A1A1 /* PersistenceController.swift */,
@@ -238,6 +247,8 @@
 			files = (
 				A775EF712ED07CC00030EDB3 /* ChatMessage.swift in Sources */,
 				A775EF6D2ED07C330030EDB3 /* ChatView.swift in Sources */,
+				A775EF762ED124170030EDB3 /* AddCareEventSheet.swift in Sources */,
+				A775EF772ED124170030EDB3 /* CareCalendarView.swift in Sources */,
 				D2E0A7202C9D4D2600A1A1A1 /* MyDogCareApp.swift in Sources */,
 				D2E0A7212C9D4D2600A1A1A1 /* ContentView.swift in Sources */,
 				A775EF732ED07CD70030EDB3 /* GraphWebView.swift in Sources */,
@@ -256,6 +267,7 @@
 				D2E0A7362C9D569B00A1A1A1 /* ImagePicker.swift in Sources */,
 				D2E0A7392C9D5F5200A1A1A1 /* PersistenceController.swift in Sources */,
 				D2E0A73A2C9D5F5200A1A1A1 /* DogPhotoStore.swift in Sources */,
+				A775EF792ED124300030EDB3 /* CareEvent.swift in Sources */,
 				673CD32C38014CC9996709255C12DB61 /* ModelRegistry.swift in Sources */,
 				A775EF692ED0385A0030EDB3 /* CameraManager.swift in Sources */,
 			);

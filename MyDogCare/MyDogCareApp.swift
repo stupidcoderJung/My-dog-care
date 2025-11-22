@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 @main
 struct MyDogCareApp: App {
@@ -13,6 +14,7 @@ struct MyDogCareApp: App {
                 .environmentObject(authViewModel)
                 .environmentObject(visionClient)
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
+                .modelContainer(for: CareEvent.self)
                 .task {
 
                     await authViewModel.initialize()

@@ -18,9 +18,9 @@ struct MainView: View {
             }
             .tag(Tab.menu1)
 
-            MenuTwoView()
+            CareCalendarView()
                 .tabItem {
-                    Label("Menu 2", systemImage: "calendar")
+                    Label("Care Calendar", systemImage: "calendar")
                 }
                 .tag(Tab.menu2)
 
@@ -39,28 +39,7 @@ struct MainView: View {
     }
 }
 
-private struct MenuTwoView: View {
-    var body: some View {
-        NavigationView {
-            VStack(spacing: 24) {
-                Image(systemName: "calendar.badge.clock")
-                    .font(.system(size: 48))
-                    .foregroundStyle(.tint)
-                Text("Menu 2")
-                    .font(.title.bold())
-                Text("Build out this section to keep track of upcoming routines and appointments.")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-                Spacer()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("Menu 2")
-        }
-    }
-}
+
 
 
 
