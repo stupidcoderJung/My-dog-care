@@ -27,7 +27,7 @@
 		A775EF942ED203850030EDB3 /* DetectedObject.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EF922ED203850030EDB3 /* DetectedObject.swift */; };
 		A775EF952ED203850030EDB3 /* Dog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EF932ED203850030EDB3 /* Dog.swift */; };
 		A775EFBA2ED20A860030EDB3 /* yolo11n.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = A775EFB72ED20A860030EDB3 /* yolo11n.mlpackage */; };
-		A775EFBB2ED20A860030EDB3 /* ResNet50_ReID.mlmodel in Sources */ = {isa = PBXBuildFile; fileRef = A775EFB62ED20A860030EDB3 /* ResNet50_ReID.mlmodel */; };
+		A775EFC02ED2E1ED0030EDB3 /* ResNet50_ReID_Int8.mlmodel in Sources */ = {isa = PBXBuildFile; fileRef = A775EFBF2ED2E1ED0030EDB3 /* ResNet50_ReID_Int8.mlmodel */; };
 		A79FE2802EC604F40069D557 /* Clerk in Frameworks */ = {isa = PBXBuildFile; productRef = A79FE27F2EC604F40069D557 /* Clerk */; };
 		D2E0A7202C9D4D2600A1A1A1 /* MyDogCareApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A7102C9D4C5E00A1A1A1 /* MyDogCareApp.swift */; };
 		D2E0A7212C9D4D2600A1A1A1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A7112C9D4C5E00A1A1A1 /* ContentView.swift */; };
@@ -78,8 +78,8 @@
 		A775EF8B2ED203400030EDB3 /* YOLOClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YOLOClient.swift; sourceTree = "<group>"; };
 		A775EF922ED203850030EDB3 /* DetectedObject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetectedObject.swift; sourceTree = "<group>"; };
 		A775EF932ED203850030EDB3 /* Dog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dog.swift; sourceTree = "<group>"; };
-		A775EFB62ED20A860030EDB3 /* ResNet50_ReID.mlmodel */ = {isa = PBXFileReference; lastKnownFileType = file.mlmodel; path = ResNet50_ReID.mlmodel; sourceTree = "<group>"; };
 		A775EFB72ED20A860030EDB3 /* yolo11n.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = yolo11n.mlpackage; sourceTree = "<group>"; };
+		A775EFBF2ED2E1ED0030EDB3 /* ResNet50_ReID_Int8.mlmodel */ = {isa = PBXFileReference; lastKnownFileType = file.mlmodel; path = ResNet50_ReID_Int8.mlmodel; sourceTree = "<group>"; };
 		B59485244961436191C9F1060CFA2E0E /* ModelRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelRegistry.swift; sourceTree = "<group>"; };
 		D2E0A7042C9D4C1200A1A1A1 /* MyDogCare.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyDogCare.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D2E0A7102C9D4C5E00A1A1A1 /* MyDogCareApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyDogCareApp.swift; sourceTree = "<group>"; };
@@ -135,7 +135,7 @@
 		A775EFB82ED20A860030EDB3 /* Models */ = {
 			isa = PBXGroup;
 			children = (
-				A775EFB62ED20A860030EDB3 /* ResNet50_ReID.mlmodel */,
+				A775EFBF2ED2E1ED0030EDB3 /* ResNet50_ReID_Int8.mlmodel */,
 				A775EFB72ED20A860030EDB3 /* yolo11n.mlpackage */,
 			);
 			path = Models;
@@ -311,7 +311,6 @@
 				A775EF6D2ED07C330030EDB3 /* ChatView.swift in Sources */,
 				A775EF762ED124170030EDB3 /* AddCareEventSheet.swift in Sources */,
 				A775EFBA2ED20A860030EDB3 /* yolo11n.mlpackage in Sources */,
-				A775EFBB2ED20A860030EDB3 /* ResNet50_ReID.mlmodel in Sources */,
 				A775EF772ED124170030EDB3 /* CareCalendarView.swift in Sources */,
 				D2E0A7202C9D4D2600A1A1A1 /* MyDogCareApp.swift in Sources */,
 				D2E0A7212C9D4D2600A1A1A1 /* ContentView.swift in Sources */,
@@ -332,6 +331,7 @@
 				D2E0A7292C9D4D8300A1A1A1 /* MyDogCare.xcdatamodeld in Sources */,
 				A775EF862ED2032C0030EDB3 /* DetectionOverlay.swift in Sources */,
 				D2E0A7332C9D50A400A1A1A1 /* DogListView.swift in Sources */,
+				A775EFC02ED2E1ED0030EDB3 /* ResNet50_ReID_Int8.mlmodel in Sources */,
 				A775EF6B2ED038660030EDB3 /* OnAirView.swift in Sources */,
 				5FD3C2AB2F1C123400FEDCBA /* DogDetailView.swift in Sources */,
 				A775EF6F2ED07C4B0030EDB3 /* ChatService.swift in Sources */,

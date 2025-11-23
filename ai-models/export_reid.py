@@ -25,6 +25,8 @@ feature_model.eval()
 dummy_input = torch.rand(1, 3, 224, 224)
 traced_model = torch.jit.trace(feature_model, dummy_input)
 
+from coremltools.models.neural_network import quantization_utils
+
 # 4. Convert to CoreML
 mlmodel = ct.convert(
     traced_model,
@@ -33,5 +35,14 @@ mlmodel = ct.convert(
     convert_to="neuralnetwork"
 )
 
-# 5. Save
-mlmodel.save("ResNet50_ReID.mlmodel")
+# 5. Quantize
+print("🔨 Applying Int8 Quantization...")
+quantized_model = quantization_utils.quantize_weights(
+    mlmodel,
+    nbits=8,
+    quantization_mode="linear"
+)
+
+# 6. Save
+quantized_model.save("ResNet50_ReID_Int8.mlmodel")
+print("✅ Quantized model saved to: ResNet50_ReID_Int8.mlmodel")

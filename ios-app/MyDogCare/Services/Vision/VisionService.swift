@@ -21,6 +21,8 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
     @Published var detectedDogs: [DogState] = []
     @Published var lastDetections: [DetectedObject] = []
 
+    private var cachedKnownDogs: [Dog] = [] // Cache for known dogs
+
     private let yoloClient: YOLOClient
     private let reidTracker: ReIDTracker?
     private let context: NSManagedObjectContext
@@ -68,7 +70,14 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
         self.init(yoloClient: yolo, reidTracker: reid)
     }
 
+    // ... (existing properties)
     func startProcessing() {
+        // Fetch dogs once when starting
+        Task {
+            self.cachedKnownDogs = await fetchKnownDogs()
+            print("🐕 VisionService: Cached \(self.cachedKnownDogs.count) dogs for identification")
+        }
+        
         sessionQueue.async { [weak self] in
             guard let self else { return }
             if !self.captureSession.isRunning {
@@ -118,7 +127,8 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
         
         // Process detection on background queue
         Task {
-            let knownDogs = await fetchKnownDogs()
+            // Use cached dogs instead of fetching every frame
+            let knownDogs = self.cachedKnownDogs
             
             processFrame(pixelBuffer, knownDogs: knownDogs) { [weak self] detections in
                 guard let self else { return }
@@ -138,6 +148,16 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
                     self.isProcessingFrame = false
                 }
             }
+        }
+    }
+
+
+    
+    // Add a method to refresh manually if needed (e.g. after adding a dog)
+    func refreshKnownDogs() {
+        Task {
+            self.cachedKnownDogs = await fetchKnownDogs()
+            print("🔄 VisionService: Refreshed dog cache. Count: \(self.cachedKnownDogs.count)")
         }
     }
     

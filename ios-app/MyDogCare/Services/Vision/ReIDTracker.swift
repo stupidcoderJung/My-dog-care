@@ -40,11 +40,11 @@ final class ReIDTracker {
     private let processingQueue = DispatchQueue(label: Constants.queueLabel, qos: .userInitiated)
 
     init(configuration: MLModelConfiguration? = nil, ciContext: CIContext = CIContext()) throws {
-        guard let modelURL = Bundle.main.url(forResource: "ResNet50_ReID", withExtension: "mlmodelc") else {
+        guard let modelURL = Bundle.main.url(forResource: "ResNet50_ReID_Int8", withExtension: "mlmodelc") else {
             print("--------------------------------------------------")
             print("CRITICAL ERROR: ReID Model resource not found.")
-            print("PLEASE ENSURE 'ResNet50_ReID.mlmodel' IS ADDED TO THE XCODE PROJECT TARGET.")
-            print("Location: ios-app/MyDogCare/Resources/Models/ResNet50_ReID.mlmodel")
+            print("PLEASE ENSURE 'ResNet50_ReID_Int8.mlmodel' IS ADDED TO THE XCODE PROJECT TARGET.")
+            print("Location: ios-app/MyDogCare/Resources/Models/ResNet50_ReID_Int8.mlmodel")
             print("--------------------------------------------------")
             throw ReIDTrackerError.modelResourceMissing
         }

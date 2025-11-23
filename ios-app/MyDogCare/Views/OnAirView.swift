@@ -148,6 +148,7 @@ struct OnAirView: View {
         }
         .onAppear {
             visionService.startProcessing()
+            visionService.refreshKnownDogs()
         }
         .onDisappear {
             visionService.stopProcessing()
