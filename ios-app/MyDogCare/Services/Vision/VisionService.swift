@@ -190,7 +190,7 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
                             let dogId = tracker.identify(
                                 embedding: embedding,
                                 knownDogs: knownDogs,
-                                threshold: 0.5  // Lowered from 0.7 for testing
+                                threshold: 0.4  // Lowered to 40% as requested
                             )
                             
                             identified.dogId = dogId
