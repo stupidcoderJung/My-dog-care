@@ -4,6 +4,7 @@
         <attribute name="aiDescription" optional="YES" attributeType="String"/>
         <attribute name="aiEmbedding" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
         <attribute name="referenceEmbeddings" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="referenceImageIds" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
         <attribute name="breed" attributeType="String"/>
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="name" attributeType="String"/>

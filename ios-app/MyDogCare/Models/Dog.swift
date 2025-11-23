@@ -25,7 +25,8 @@ extension Dog {
     
     /// Multiple reference embeddings for better ReID accuracy
     /// Multiple reference embeddings for better ReID accuracy
-    var embeddingHistory: [[Float]] {
+    /// Renamed to referenceEmbeddingsList to avoid conflict with Core Data 'referenceEmbeddings' attribute
+    var referenceEmbeddingsList: [[Float]] {
         get {
             guard let data = primitiveValue(forKey: "referenceEmbeddings") as? Data else { return [] }
             do {
@@ -45,15 +46,36 @@ extension Dog {
         }
     }
     
+    /// Filenames of reference images stored in disk
+    var referenceImageIdList: [String] {
+        get {
+            guard let data = primitiveValue(forKey: "referenceImageIds") as? Data else { return [] }
+            do {
+                return try JSONDecoder().decode([String].self, from: data)
+            } catch {
+                print("Error decoding referenceImageIds: \(error)")
+                return []
+            }
+        }
+        set {
+            do {
+                let data = try JSONEncoder().encode(newValue)
+                setPrimitiveValue(data, forKey: "referenceImageIds")
+            } catch {
+                print("Error encoding referenceImageIds: \(error)")
+            }
+        }
+    }
+    
     // Helper to add a new embedding to references
     func addReferenceEmbedding(_ newEmbedding: [Float]) {
-        var current = embeddingHistory
+        var current = referenceEmbeddingsList
         current.append(newEmbedding)
         // Limit to 5 embeddings to save space/time
         if current.count > 5 {
             current.removeFirst(current.count - 5)
         }
-        embeddingHistory = current
+        referenceEmbeddingsList = current
     }
     
     // Deterministic UUID based on objectID

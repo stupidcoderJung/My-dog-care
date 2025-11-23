@@ -11,6 +11,7 @@ struct DogDetailView: View {
                 dogPhotoSection
                 infoCard
                 aiInsightsCard
+                aiDataCard
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
@@ -71,6 +72,57 @@ struct DogDetailView: View {
 
 
         }
+    }
+    
+    private var aiDataCard: some View {
+        detailCard(title: "AI 인식 데이터") {
+            if dog.referenceImageIdList.isEmpty {
+                Text("등록된 참조 데이터가 없습니다.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("참조 이미지 (\(dog.referenceImageIdList.count)장)")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(dog.referenceImageIdList, id: \.self) { imageId in
+                                if let image = DogPhotoStore.loadImage(id: imageId) {
+                                    Image(uiImage: image)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 80, height: 80)
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                }
+                            }
+                        }
+                    }
+                    
+                    Divider()
+                    
+                    if let firstEmbedding = dog.referenceEmbeddingsList.first {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("참조 벡터 (총 \(dog.referenceEmbeddingsList.count)개)")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            
+                            Text(vectorString(from: firstEmbedding))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(3)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private func vectorString(from embedding: [Float]) -> String {
+        let count = embedding.count
+        let prefix = embedding.prefix(10).map { String(format: "%.2f", $0) }.joined(separator: ", ")
+        return "[\(prefix)...] (\(count)d)"
     }
 
     private func detailCard(title: String, @ViewBuilder content: () -> some View) -> some View {

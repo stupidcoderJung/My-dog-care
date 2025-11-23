@@ -4,6 +4,8 @@ import CoreML
 import CoreVideo
 import Foundation
 import ImageIO
+import Vision
+import UIKit
 
 enum ReIDTrackerError: Error, LocalizedError {
     case invalidImageExtent
@@ -32,7 +34,7 @@ final class ReIDTracker {
         static let queueLabel = "com.mydogcare.reidtracker"
     }
 
-    private let model: MLModel
+    private let model: VNCoreMLModel
     private let ciContext: CIContext
     private let colorSpace = CGColorSpaceCreateDeviceRGB()
     private let processingQueue = DispatchQueue(label: Constants.queueLabel, qos: .userInitiated)
@@ -54,39 +56,59 @@ final class ReIDTracker {
             return c
         }()
         
-        self.model = try MLModel(contentsOf: modelURL, configuration: config)
+        let mlModel = try MLModel(contentsOf: modelURL, configuration: config)
+        self.model = try VNCoreMLModel(for: mlModel)
         self.ciContext = ciContext
     }
 
-    func extractEmbedding(from image: CIImage) async throws -> [Float] {
-        try await withCheckedThrowingContinuation { continuation in
-            processingQueue.async { [weak self] in
-                guard let self else {
-                    continuation.resume(throwing: ReIDTrackerError.embeddingConversionFailed)
+    // NEW: Extract embedding from CIImage
+    func extractEmbedding(from ciImage: CIImage) async throws -> [Float] {
+        return try await withCheckedThrowingContinuation { continuation in
+            let request = VNCoreMLRequest(model: model) { request, error in
+                if let error = error {
+                    continuation.resume(throwing: error)
                     return
                 }
-
-                do {
-                    let pixelBuffer = try self.makePixelBuffer(from: image, targetSize: Constants.inputSize)
-                    
-                    // Create input feature provider
-                    let input = try MLDictionaryFeatureProvider(dictionary: ["image": MLFeatureValue(pixelBuffer: pixelBuffer)])
-                    
-                    // Predict
-                    let output = try self.model.prediction(from: input)
-                    
-                    // Get embedding
-                    guard let embeddingFeature = output.featureValue(for: "embedding")?.multiArrayValue else {
-                        throw ReIDTrackerError.embeddingConversionFailed
-                    }
-                    
-                    let vector = try Self.vector(from: embeddingFeature)
-                    continuation.resume(returning: vector)
-                } catch {
-                    continuation.resume(throwing: error)
+                
+                guard let results = request.results as? [VNCoreMLFeatureValueObservation],
+                      let embedding = results.first?.featureValue.multiArrayValue else {
+                    continuation.resume(throwing: NSError(
+                        domain: "ReIDTracker",
+                        code: -1,
+                        userInfo: [NSLocalizedDescriptionKey: "Failed to extract embedding"]
+                    ))
+                    return
                 }
+                
+                // Convert MLMultiArray → [Float]
+                let floatArray = (0..<embedding.count).map { 
+                    embedding[$0].floatValue 
+                }
+                
+                continuation.resume(returning: floatArray)
+            }
+            
+            request.imageCropAndScaleOption = .scaleFill
+            
+            let handler = VNImageRequestHandler(ciImage: ciImage, options: [:])
+            do {
+                try handler.perform([request])
+            } catch {
+                continuation.resume(throwing: error)
             }
         }
+    }
+    
+    // NEW: Convenience method for UIImage
+    func extractEmbedding(from uiImage: UIImage) async throws -> [Float] {
+        guard let ciImage = CIImage(image: uiImage) else {
+            throw NSError(
+                domain: "ReIDTracker",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to convert UIImage to CIImage"]
+            )
+        }
+        return try await extractEmbedding(from: ciImage)
     }
 
     func identify(embedding: [Float], knownDogs: [Dog], threshold: Float = Constants.similarityThreshold) -> UUID? {
@@ -100,27 +122,30 @@ final class ReIDTracker {
         var bestMatch: (dog: Dog, similarity: Float)?
 
         for dog in knownDogs {
-            guard let candidate = dog.embedding, candidate.count == embedding.count else {
-                let dogName = dog.name ?? "unnamed"
-                if dog.embedding == nil {
-                    print("  ⚠️ Dog '\(dogName)' has no embedding - skipped")
-                } else {
-                    print("  ⚠️ Dog '\(dogName)' embedding size mismatch - skipped")
-                }
-                continue
-            }
-
-            let similarity = cosineSimilarity(embedding, candidate)
-            let dogName = dog.name ?? "unnamed"
-            print("  📐 Dog '\(dogName)': similarity = \(String(format: "%.3f", similarity))")
+            // Use referenceEmbeddingsList if available, otherwise fall back to single embedding
+            let candidates = dog.referenceEmbeddingsList.isEmpty ? (dog.embedding.map { [$0] } ?? []) : dog.referenceEmbeddingsList
             
-            guard similarity >= threshold else {
-                print("    ❌ Below threshold (\(threshold))")
+            var maxSimilarity: Float = -1.0
+            
+            for candidate in candidates {
+                guard candidate.count == embedding.count else { continue }
+                let similarity = cosineSimilarity(embedding, candidate)
+                if similarity > maxSimilarity {
+                    maxSimilarity = similarity
+                }
+            }
+            
+            let dogName = dog.name ?? "unnamed"
+            if maxSimilarity > -1.0 {
+                print("  📐 Dog '\(dogName)': max similarity = \(String(format: "%.3f", maxSimilarity))")
+            }
+            
+            guard maxSimilarity >= threshold else {
                 continue
             }
 
-            if bestMatch == nil || similarity > bestMatch!.similarity {
-                bestMatch = (dog, similarity)
+            if bestMatch == nil || maxSimilarity > bestMatch!.similarity {
+                bestMatch = (dog, maxSimilarity)
                 print("    ✓ New best match!")
             }
         }
@@ -156,52 +181,6 @@ final class ReIDTracker {
 }
 
 private extension ReIDTracker {
-    func makePixelBuffer(from image: CIImage, targetSize: CGSize) throws -> CVPixelBuffer {
-        let width = image.extent.width
-        let height = image.extent.height
-        guard width > 0, height > 0 else {
-            throw ReIDTrackerError.invalidImageExtent
-        }
-
-        var pixelBuffer: CVPixelBuffer?
-        let attrs: [CFString: Any] = [
-            kCVPixelBufferCGImageCompatibilityKey: true,
-            kCVPixelBufferCGBitmapContextCompatibilityKey: true,
-            kCVPixelBufferIOSurfacePropertiesKey: [:]
-        ]
-
-        let status = CVPixelBufferCreate(
-            kCFAllocatorDefault,
-            Int(targetSize.width),
-            Int(targetSize.height),
-            kCVPixelFormatType_32BGRA,
-            attrs as CFDictionary,
-            &pixelBuffer
-        )
-
-        guard status == kCVReturnSuccess, let pixelBuffer else {
-            throw ReIDTrackerError.pixelBufferCreationFailed
-        }
-
-        CVPixelBufferLockBaseAddress(pixelBuffer, [])
-        defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
-
-        let oriented = image.oriented(.up)
-        let normalized = oriented.transformed(by: CGAffineTransform(
-            translationX: -oriented.extent.origin.x,
-            y: -oriented.extent.origin.y
-        ))
-
-        let scaleX = targetSize.width / max(normalized.extent.width, 1)
-        let scaleY = targetSize.height / max(normalized.extent.height, 1)
-        let scaled = normalized.transformed(by: CGAffineTransform(scaleX: scaleX, y: scaleY))
-
-        let bounds = CGRect(origin: .zero, size: targetSize)
-        ciContext.render(scaled, to: pixelBuffer, bounds: bounds, colorSpace: colorSpace)
-
-        return pixelBuffer
-    }
-
     static func vector(from multiArray: MLMultiArray) throws -> [Float] {
         let count = multiArray.count
         guard count > 0 else {

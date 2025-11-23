@@ -151,9 +151,10 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
         for dog in knownDogs {
             let dogName = dog.name ?? "unnamed"
             let hasEmbedding = dog.embedding != nil
-            print("  - \(dogName): has embedding: \(hasEmbedding)")
+            let refCount = dog.referenceEmbeddingsList.count
+            print("  - \(dogName): has embedding: \(hasEmbedding), refs: \(refCount)")
             if let emb = dog.embedding {
-                print("    Embedding size: \(emb.count)")
+                print("    Legacy embedding size: \(emb.count)")
             }
         }
         
