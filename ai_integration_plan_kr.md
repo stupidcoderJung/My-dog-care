@@ -18,9 +18,15 @@
 
 ### 1. 온디바이스 (카메라 모드)
 *   **역할**: 눈 & 반사신경.
-*   **기술 스택**: CoreML (YOLOv11/v12), Swift, ReID, 경량 Behavior/Stress 헤드.
+*   **기술 스택**: CoreML (YOLOv11/v12), Swift, **DeepSORT**, ReID, 경량 Behavior/Stress 헤드.
 *   **파이프라인**:
-    1.  **감지 및 추적**: YOLO + ReID (One-shot).
+    1.  **감지 및 추적**: 
+        *   **YOLO 감지**: YOLOv11-nano로 강아지 감지
+        *   **DeepSORT 추적**: 강력한 추적을 위한 2단계 파이프라인
+            *   **1단계**: Kalman Filter + IoU 매칭 (ReID 없음)
+            *   **2단계**: 선택적 ReID (미확정 트랙만)
+            *   **3단계**: Temporal Voting으로 최종 업데이트 (10프레임 확정)
+            *   **결과**: 신원 확정 후 99% ReID 절감
     2.  **행동 및 스트레스 분석**: 경량 온디바이스 모델:
         *   **행동 분류기**: 최근 프레임 히스토리(bbox 궤적, 속도, 방향)를 분석하여 행동 확률 예측.
         *   **스트레스 프록시 헤드**: 행동 패턴 및 움직임 통계로부터 스트레스 수준 (0~1) 추정.
@@ -68,7 +74,7 @@
 ## 📊 상세 데이터 전략 요약
 
 ### 온디바이스 데이터 구조
-*   `DetectedObject`: YOLO 출력 (bbox, confidence, trackId, embedding).
+*   `DetectedObject`: YOLO 출력 (bbox, confidence, trackId - DeepSORT 트랙 ID, embedding - 2048d 벡터, dogId - 확정 신원, dogName - 강아지 이름).
 *   `DogState`: 정규화된 상태 (bbox, 속도, 행동 확률, 스트레스).
 *   `PairState`: 강아지 쌍 관계 (거리, 친화도, 긴장도).
 *   `DeviceStatePacket`: 매초 생성되는 종합 패킷.
@@ -97,7 +103,14 @@
 ### Priority 0: 온디바이스 지능 (카메라 모드)
 *   **핵심 모델**: 
     *   **YOLO**: YOLOv11/v12-nano 객체 감지 (CoreML)
-    *   **ReID**: ResNet50 특징 추출기 (CoreML)
+    *   **DeepSORT 추적기**: 고급 다중 객체 추적
+        *   **KalmanFilter**: 위치 예측을 위한 상수 속도 모델
+        *   **Track**: Temporal Voting을 사용한 개별 트랙 관리
+        *   **2단계 파이프라인**: IoU 매칭 → 선택적 ReID → 최종 업데이트
+        *   **성능**: 10프레임 확정 후 99% ReID 절감
+    *   **ReID**: ResNet50 특징 추출기 (CoreML, Int8 양자화)
+        *   **강력한 매칭**: Voting (Top-3) + Margin Check (5%)
+        *   **최적화**: 확정 트랙은 ReID 건너뛰기
     *   **행동 분류기**: 경량 MLP/1D-CNN 행동 분류
         *   입력: 최근 N프레임 bbox 궤적 (모션 벡터)
         *   출력: `behaviorProbs` - {"play": 0.8, "rest": 0.1, "chase": 0.05, ...}
@@ -107,7 +120,7 @@
         *   출력: `stressProxy` (0~1)
         *   구현: 간단한 MLP 또는 규칙 기반 + 보정 네트워크
 *   **데이터 구조**: `DetectedObject`, `DogState`, `PairState`, `DeviceStatePacket`.
-*   **상태 파이프라인**: YOLO -> ReID -> Behavior/Stress Head -> StateBuilder -> EventUploader.
+*   **상태 파이프라인**: YOLO -> DeepSORT (IoU → ReID → Update) -> Behavior/Stress Head -> StateBuilder -> EventUploader.
 
 ### Phase 1: 로컬 기반 & 듀얼 모드
 *   **듀얼 모드 UI**: 카메라 모드 vs 뷰어 모드 전환기.
