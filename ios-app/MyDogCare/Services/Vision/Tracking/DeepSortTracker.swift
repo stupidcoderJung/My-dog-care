@@ -14,7 +14,7 @@ final class DeepSortTracker {
     func update(detections: [DetectedObject]) -> [DetectedObject] {
         var results: [DetectedObject] = []
         
-        print("🔄 DeepSORT: Processing \(detections.count) detections. Active tracks: \(tracks.count), Confirmed: \(tracks.filter { $0.isIdentityConfirmed }.count)")
+        print("🔄 DeepSORT 업데이트: \(detections.count)개 감지. 활성 트랙: \(tracks.count)개, 확정: \(tracks.filter { $0.isIdentityConfirmed }.count)개")
         
         // 1. Predict
         for track in tracks {
@@ -128,7 +128,7 @@ final class DeepSortTracker {
     /// Phase 1: Match detections to tracks using only IoU (no ReID)
     /// Returns indices of detections that need ReID
     func matchWithoutReID(detections: [DetectedObject]) -> [Int] {
-        print("🔄 DeepSORT Phase 1: Matching \(detections.count) detections. Active tracks: \(tracks.count), Confirmed: \(tracks.filter { $0.isIdentityConfirmed }.count)")
+        print("🔄 1단계 매칭: \(detections.count)개 감지. 활성 트랙: \(tracks.count)개, 확정: \(tracks.filter { $0.isIdentityConfirmed }.count)개")
         
         // 1. Predict
         for track in tracks {
@@ -138,7 +138,7 @@ final class DeepSortTracker {
         // 2. Match using IoU only
         let (matches, unmatchedTracks, unmatchedDetections) = matchIoUOnly(tracks: tracks, detections: detections)
         
-        print("  📊 Match result: \(matches.count) matched, \(unmatchedTracks.count) unmatched tracks, \(unmatchedDetections.count) unmatched detections")
+        print("  📊 매칭 결과: \(matches.count)개 매칭, \(unmatchedTracks.count)개 트랙 미매칭, \(unmatchedDetections.count)개 감지 미매칭")
         
         // 3. Identify which detections need ReID
         var needsReID: Set<Int> = []
@@ -148,20 +148,21 @@ final class DeepSortTracker {
             let track = tracks[trackIdx]
             if !track.isIdentityConfirmed {
                 needsReID.insert(detectionIdx)
-                print("  🔍 Detection #\(detectionIdx) needs ReID (matched to unconfirmed Track #\(track.trackId))")
+                print("  🔍 감지 #\(detectionIdx) → ReID 필요 (미확정 트랙 #\(track.trackId)에 매칭됨)")
             } else {
-                print("  ✅ Detection #\(detectionIdx) SKIP ReID (matched to confirmed Track #\(track.trackId))")
+                print("  ✅ 감지 #\(detectionIdx) → ReID 생략 (확정 트랙 #\(track.trackId)에 매칭됨)")
             }
         }
         
         // Unmatched detections: always need ReID (new tracks)
         for detectionIdx in unmatchedDetections {
             needsReID.insert(detectionIdx)
-            print("  🆕 Detection #\(detectionIdx) needs ReID (new/unmatched)")
+            print("  🆕 감지 #\(detectionIdx) → ReID 필요 (새로운/미매칭)")
         }
         
-        let skipCount = detections.count - needsReID.count
-        print("⚡ ReID Skip: \(skipCount)/\(detections.count) detections (\(Int(Float(skipCount)/Float(max(1, detections.count))*100))%)")
+        let needReIDCount = needsReID.count
+        let skipCount = detections.count - needReIDCount
+        print("⚡ ReID 실행: \(needReIDCount)/\(detections.count)개 (생략: \(skipCount)개)")
         
         return Array(needsReID)
     }

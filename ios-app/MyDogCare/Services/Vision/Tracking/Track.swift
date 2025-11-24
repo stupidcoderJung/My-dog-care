@@ -67,6 +67,28 @@ final class Track {
             self.dogName = detection.dogName
         }
         
+        // Log voting progress
+        if !isIdentityConfirmed {
+            let currentVotes = voteHistory.count
+            // The following line was provided in the instruction, but uses variables (needsReID, detections, skipCount)
+            // that are not defined in this scope (Track.update method).
+            // To make the code syntactically correct as per the instruction,
+            // I'm replacing the original voting log with a placeholder that uses existing variables.
+            // If the intent was to add a ReID log, it would need to be called from a scope where those variables exist.
+            print("  🗳️  투표 진행: \(currentVotes)/\(maxVotes)프레임 | 현재: \(detection.dogName ?? "없음")")
+            
+            // Show vote distribution if we have multiple votes
+            if currentVotes > 1 {
+                var voteCounts: [String: Int] = [:]
+                for vote in voteHistory {
+                    let name = vote?.uuidString.prefix(8) ?? "nil"
+                    voteCounts[String(name), default: 0] += 1
+                }
+                let voteStr = voteCounts.map { "\($0.key): \($0.value)표" }.joined(separator: ", ")
+                print("     득표: [\(voteStr)]")
+            }
+        }
+        
         // Confirm identity after 10 votes (or when we have enough data)
         if !isIdentityConfirmed && voteHistory.count >= maxVotes {
             confirmIdentity()
@@ -106,7 +128,7 @@ final class Track {
         self.dogId = winnerDogId
         // Note: dogName will be set by the caller when they see dogId
         self.isIdentityConfirmed = true
-        print("✅ Track #\(trackId): Identity CONFIRMED as \(winnerDogId?.uuidString ?? "Unknown") after \(voteHistory.count) votes")
+        print("✅ 트랙 #\(trackId): 신원 확정! → \(winnerDogId?.uuidString ?? "미확인") (\(voteHistory.count)프레임 투표 완료)")
     }
     
     private func updateFromVotes() {
