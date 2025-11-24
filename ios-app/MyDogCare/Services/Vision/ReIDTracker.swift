@@ -111,53 +111,67 @@ final class ReIDTracker {
         return try await extractEmbedding(from: ciImage)
     }
 
-    func identify(embedding: [Float], knownDogs: [Dog], threshold: Float = Constants.similarityThreshold) -> UUID? {
-        guard !embedding.isEmpty else {
-            print("🔍 ReID identify: Empty embedding provided")
+    /// Robust identification using Voting and Margin Check
+    /// - Parameters:
+    ///   - embedding: The vector to identify
+    ///   - knownDogs: List of candidate dogs
+    ///   - threshold: Minimum similarity to consider a match (default 0.7)
+    ///   - margin: Minimum difference between 1st and 2nd best match to confirm (default 0.05)
+    /// - Returns: UUID of the identified dog, or nil if ambiguous/unknown
+    func identifyRobust(
+        embedding: [Float],
+        knownDogs: [Dog],
+        threshold: Float = Constants.similarityThreshold,
+        margin: Float = 0.05
+    ) -> UUID? {
+        guard !embedding.isEmpty else { return nil }
+        
+        // 1. Collect all candidate vectors with their Dog ID
+        // Structure: (Dog, Similarity)
+        var allCandidates: [(dog: Dog, similarity: Float)] = []
+        
+        for dog in knownDogs {
+            let references = dog.referenceEmbeddingsList.isEmpty ? (dog.embedding.map { [$0] } ?? []) : dog.referenceEmbeddingsList
+            for refVector in references {
+                let sim = cosineSimilarity(embedding, refVector)
+                if sim >= threshold {
+                    allCandidates.append((dog, sim))
+                }
+            }
+        }
+        
+        // 2. Sort by similarity descending
+        allCandidates.sort { $0.similarity > $1.similarity }
+        
+        guard let bestMatch = allCandidates.first else {
+            print("💔 ReID: No match found above threshold \(threshold)")
             return nil
         }
         
-        print("🔍 ReID identify: Comparing against \(knownDogs.count) dogs with threshold \(threshold)")
-
-        var bestMatch: (dog: Dog, similarity: Float)?
-
-        for dog in knownDogs {
-            // Use referenceEmbeddingsList if available, otherwise fall back to single embedding
-            let candidates = dog.referenceEmbeddingsList.isEmpty ? (dog.embedding.map { [$0] } ?? []) : dog.referenceEmbeddingsList
-            
-            var maxSimilarity: Float = -1.0
-            
-            for candidate in candidates {
-                guard candidate.count == embedding.count else { continue }
-                let similarity = cosineSimilarity(embedding, candidate)
-                if similarity > maxSimilarity {
-                    maxSimilarity = similarity
-                }
-            }
-            
-            let dogName = dog.name ?? "unnamed"
-            if maxSimilarity > -1.0 {
-                print("  📐 Dog '\(dogName)': max similarity = \(String(format: "%.3f", maxSimilarity))")
-            }
-            
-            guard maxSimilarity >= threshold else {
-                continue
-            }
-
-            if bestMatch == nil || maxSimilarity > bestMatch!.similarity {
-                bestMatch = (dog, maxSimilarity)
-                print("    ✓ New best match!")
+        // 3. Margin Check (Ambiguity Check)
+        // If there is a runner-up from a DIFFERENT dog, check the gap.
+        if let runnerUp = allCandidates.first(where: { $0.dog.uuid != bestMatch.dog.uuid }) {
+            let gap = bestMatch.similarity - runnerUp.similarity
+            if gap < margin {
+                print("⚠️ ReID: Ambiguous! Best: \(bestMatch.dog.name ?? "?") (\(bestMatch.similarity)), 2nd: \(runnerUp.dog.name ?? "?") (\(runnerUp.similarity)). Gap \(gap) < \(margin)")
+                return nil // Too close to call
             }
         }
         
-        if let match = bestMatch {
-            let matchName = match.dog.name ?? "unnamed"
-            print("🎯 Best match: '\(matchName)' with similarity \(String(format: "%.3f", match.similarity))")
-        } else {
-            print("💔 No match found above threshold")
-        }
+        // 4. Voting (Top-3 Consensus) - Optional but good for stability
+        // Look at top 3 candidates. If the best match dog appears at least twice, it's a strong match.
+        // For small galleries, Margin Check is usually enough, but let's log voting for now.
+        let top3 = allCandidates.prefix(3)
+        let voteCount = top3.filter { $0.dog.uuid == bestMatch.dog.uuid }.count
+        
+        print("🎯 ReID: Match '\(bestMatch.dog.name ?? "Unknown")' (Sim: \(String(format: "%.3f", bestMatch.similarity)), Votes: \(voteCount)/\(top3.count))")
+        
+        return bestMatch.dog.uuid
+    }
 
-        return bestMatch?.dog.uuid
+    func identify(embedding: [Float], knownDogs: [Dog], threshold: Float = Constants.similarityThreshold) -> UUID? {
+        // Forward to robust method with default margin
+        return identifyRobust(embedding: embedding, knownDogs: knownDogs, threshold: threshold, margin: 0.05)
     }
 
     func cosineSimilarity(_ a: [Float], _ b: [Float]) -> Float {

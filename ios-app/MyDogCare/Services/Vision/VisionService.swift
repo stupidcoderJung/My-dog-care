@@ -21,9 +21,11 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
     @Published var detectedDogs: [DogUIState] = []
     @Published var lastDetections: [DetectedObject] = []
     @Published var currentDogStates: [DogState] = [] // Rich data states for logging
+    @Published var currentPacket: DeviceStatePacket?
 
     private var cachedKnownDogs: [Dog] = [] // Cache for known dogs
-    private var frameBuffer: [(UIImage, [DetectedObject])] = [] // Synchronized buffer for VLM
+    private var frameBuffer: [(UIImage, [DetectedObject], Date)] = [] // Synchronized buffer for VLM (Image, Detections, Timestamp)
+    private var trackIdMap: [Int: UUID] = [:] // Temporal Consistency: TrackID -> DogID
 
     private let yoloClient: YOLOClient
     private let reidTracker: ReIDTracker?
@@ -31,6 +33,8 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
     private let visionClient: VisionClient
     private let imageTagger: ImageTagger
     private let vlmStateMapper: VLMStateMapper
+    private let statePacketBuilder: StatePacketBuilder
+    private let deepSortTracker = DeepSortTracker() // DeepSORT Tracker
     
     // Camera session (integrated from CameraManager)
     private let captureSession = AVCaptureSession()
@@ -68,6 +72,7 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
         self.visionClient = client
         self.imageTagger = ImageTagger()
         self.vlmStateMapper = VLMStateMapper()
+        self.statePacketBuilder = StatePacketBuilder()
         
         super.init()
         configureSession()
@@ -157,7 +162,7 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
             // Use cached dogs instead of fetching every frame
             let knownDogs = self.cachedKnownDogs
             
-            processFrame(pixelBuffer, knownDogs: knownDogs) { [weak self] detections in
+            processFrame(pixelBuffer, timestamp: Date(), knownDogs: knownDogs) { [weak self] detections, timestamp in
                 guard let self else { return }
                 
                 let states = detections.map { detection in
@@ -191,14 +196,15 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
     // MARK: - Processing
 
     func processFrame(_ pixelBuffer: CVPixelBuffer, 
+                     timestamp: Date,
                      knownDogs: [Dog],
-                     completion: @escaping ([DetectedObject]) -> Void) {
+                     completion: @escaping ([DetectedObject], Date) -> Void) {
         // 🐕 LOG: Known dogs
         // print("🐕 ProcessFrame: Known dogs count: \(knownDogs.count)")
         
         yoloClient.predict(pixelBuffer: pixelBuffer) { [weak self] detections in
             guard let self else {
-                completion([])
+                completion([], timestamp)
                 return
             }
             
@@ -214,48 +220,46 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
             for (index, detection) in detections.enumerated() {
                 var identified = detection
                 
+                // Check if this detection needs ReID
+                // Skip ReID if we already have a confirmed Track for this bbox location
+                var needsReID = true
+                
+                // We don't have trackId yet (that's assigned by DeepSORT)
+                // So we skip ReID optimization for now and let DeepSORT handle it
+                // The optimization will happen in DeepSORT's update method
+                
                 if let tracker = self.reidTracker,
                    let cropRect = self.rectForCropping(from: detection.bbox, imageSize: imageSize) {
-                    // print("✅ ReIDTracker available for detection #\(index)")
                     let croppedImage = ciImage.cropped(to: cropRect)
                     reIDGroup.enter()
                     Task {
                         do {
                             let embedding = try await tracker.extractEmbedding(from: croppedImage)
-                            // print("  📊 Extracted embedding (size: \(embedding.count))")
                             identified.embedding = embedding
                             
-                            let dogId = tracker.identify(
+                            let dogId = tracker.identifyRobust(
                                 embedding: embedding,
                                 knownDogs: knownDogs,
-                                threshold: 0.4  // Lowered to 40% as requested
+                                threshold: 0.4,
+                                margin: 0.05
                             )
                             
+                            // Store the result (DeepSORT will handle voting)
                             identified.dogId = dogId
-                            
                             if let dogId = dogId,
                                let dog = knownDogs.first(where: { $0.uuid == dogId }) {
                                 identified.dogName = dog.name
-                                // print("🎉 MATCH FOUND! Dog ID: \(dogId), Name: \(dog.name ?? "unknown")")
-                            } else {
-                                // print("❌ No match for detection #\(index) (similarity < threshold)")
                             }
                         } catch {
                             print("⚠️ ReID failed for detection #\(index): \(error)")
                         }
                         
-                        // Thread-safe append
                         syncQueue.sync {
                             identifiedDetections.append(identified)
                         }
                         reIDGroup.leave()
                     }
                 } else {
-                    if self.reidTracker == nil {
-                        // print("⚠️ ReIDTracker is nil - cannot identify detection #\(index)")
-                    } else {
-                        // print("⚠️ Could not crop detection #\(index)")
-                    }
                     syncQueue.sync {
                         identifiedDetections.append(identified)
                     }
@@ -263,19 +267,25 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
             }
             
             reIDGroup.notify(queue: .main) {
-                // print("✨ ProcessFrame complete: \(identifiedDetections.count) detections processed")
-                self.lastDetections = identifiedDetections
+                // DeepSORT handles all tracking and identity management
+                let trackedDetections = self.deepSortTracker.update(detections: identifiedDetections)
                 
+                //print("✨ ProcessFrame complete: \(trackedDetections.count) tracked objects")
+                self.lastDetections = trackedDetections
                 // Update Frame Buffer (Keep last 10)
                 if let cgImage = self.currentFrame {
                     let uiImage = UIImage(cgImage: cgImage)
-                    self.frameBuffer.append((uiImage, identifiedDetections))
+                    self.frameBuffer.append((uiImage, trackedDetections, timestamp))
                     if self.frameBuffer.count > 10 {
                         self.frameBuffer.removeFirst()
                     }
                 }
                 
-                completion(identifiedDetections)
+                completion(trackedDetections, timestamp)
+                // Generate packet for real-time geometric visualization
+                let imageSize = CGSize(width: CVPixelBufferGetWidth(pixelBuffer), height: CVPixelBufferGetHeight(pixelBuffer))
+                let dogStates = trackedDetections.map { self.mapToDogState(detection: $0, imageSize: imageSize, timestamp: timestamp) }
+                _ = self.generateStatePacket(dogStates: dogStates, sessionId: UUID().uuidString) // Use temp session ID for real-time
             }
         }
     }
@@ -289,7 +299,7 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
             throw NSError(domain: "VisionService", code: -1, userInfo: [NSLocalizedDescriptionKey: "No frames in buffer"])
         }
         
-        let taggedFrames = bufferSnapshot.map { (image, detections) in
+        let taggedFrames = bufferSnapshot.map { (image, detections, _) in
             imageTagger.tagImage(image, detections: detections)
         }
         
@@ -299,7 +309,7 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
         )
         
         // Map VLM response to DogState (Rich Data)
-        if let (lastImage, lastDetections) = bufferSnapshot.last {
+        if let (lastImage, lastDetections, lastTimestamp) = bufferSnapshot.last {
              let frameSize = lastImage.size
              let dogStates = vlmStateMapper.mapToDogStates(
                  vlmResponse: response,
@@ -315,10 +325,29 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
                      print("    Action: \(state.vlmAction ?? "nil") -> \(state.behaviorProbs)")
                      print("    Emotion: \(state.vlmEmotion ?? "nil") -> Stress: \(state.stressProxy ?? 0.0)")
                  }
+                 
+                 // Generate packet with rich VLM data
+                 _ = self.generateStatePacket(dogStates: dogStates, sessionId: UUID().uuidString)
              }
         }
         
         return (response, taggedFrames, debugTurns)
+    }
+
+    func generateStatePacket(
+        dogStates: [DogState],
+        sessionId: String
+    ) -> DeviceStatePacket {
+        let packet = statePacketBuilder.buildPacket(
+            dogStates: dogStates,
+            sessionId: sessionId,
+            fps: Float(self.fps)
+        )
+        
+        Task { @MainActor in
+            self.currentPacket = packet
+        }
+        return packet
     }
 
     // MARK: - Camera Session Configuration
@@ -437,5 +466,28 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
                 }
             }
         }
+    }
+    
+    private func mapToDogState(detection: DetectedObject, imageSize: CGSize, timestamp: Date) -> DogState {
+        let normRect = normalize(rect: detection.bbox, imageSize: imageSize)
+        let bboxNorm = BBoxNorm(
+            cx: Float(normRect.midX),
+            cy: Float(normRect.midY),
+            w: Float(normRect.width),
+            h: Float(normRect.height)
+        )
+        
+        return DogState(
+            timestamp: timestamp,
+            dogId: detection.dogId,
+            tempTrackId: detection.trackId ?? 0,
+            bboxNorm: bboxNorm,
+            speedPx: nil,
+            directionRad: nil,
+            behaviorProbs: [:],
+            stressProxy: nil,
+            vlmAction: nil,
+            vlmEmotion: nil
+        )
     }
 }
