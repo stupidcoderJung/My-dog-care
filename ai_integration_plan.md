@@ -18,9 +18,15 @@ It tracks multiple dogs in real-time using on-device AI (YOLO + ReID), records s
 
 ### 1. On-Device (Camera Mode)
 *   **Role**: The "Eyes" & "Reflexes".
-*   **Tech Stack**: CoreML (YOLOv11/v12), Swift, ReID, Lightweight Behavior/Stress Heads.
+*   **Tech Stack**: CoreML (YOLOv11/v12), Swift, **DeepSORT**, ReID, Lightweight Behavior/Stress Heads.
 *   **Pipeline**:
-    1.  **Detection & Tracking**: YOLO + ReID (One-shot).
+    1.  **Detection & Tracking**: 
+        *   **YOLO Detection**: YOLOv11-nano for dog detection
+        *   **DeepSORT Tracking**: Two-phase pipeline for robust tracking
+            *   **Phase 1**: Kalman Filter + IoU matching (no ReID)
+            *   **Phase 2**: Selective ReID (only unconfirmed tracks)
+            *   **Phase 3**: Final update with temporal voting (10-frame confirmation)
+            *   **Result**: 99% ReID reduction after identity confirmation
     2.  **Behavior & Stress Analysis**: Lightweight on-device models:
         *   **Behavior Classifier**: Analyzes recent frame history (bbox trajectory, speed, direction) to predict action probabilities.
         *   **Stress Proxy Head**: Estimates stress level (0~1) from behavior patterns and motion statistics.
@@ -75,8 +81,10 @@ struct DetectedObject {
     let bbox: CGRect        // Original frame coords
     let confidence: Float
     let classId: Int        // Dog class index
-    let trackId: Int?       // Temporary tracker ID
-    let embedding: [Float]? // ReID 128d vector
+    let trackId: Int?       // DeepSORT track ID
+    let embedding: [Float]? // ReID 2048d vector
+    let dogId: UUID?        // Confirmed dog identity
+    let dogName: String?    // Dog's name
 }
 ```
 
@@ -181,7 +189,14 @@ struct DeviceStatePacket {
 ### Priority 0: On-Device Intelligence (Camera Mode)
 *   **Core Models**: 
     *   **YOLO**: YOLOv11/v12-nano for object detection (CoreML)
-    *   **ReID**: ResNet50 feature extractor for identification (CoreML)
+    *   **DeepSORT Tracker**: Advanced multi-object tracking
+        *   **KalmanFilter**: Constant velocity model for position prediction
+        *   **Track**: Individual track management with temporal voting
+        *   **Two-Phase Pipeline**: IoU matching → Selective ReID → Final update
+        *   **Performance**: 99% ReID reduction after 10-frame confirmation
+    *   **ReID**: ResNet50 feature extractor for identification (CoreML, Int8 quantized)
+        *   **Robust Matching**: Voting (Top-3) + Margin Check (5%)
+        *   **Optimization**: Skipped for confirmed tracks
     *   **Behavior Classifier**: Lightweight MLP/1D-CNN for action classification
         *   Input: Recent N-frame bbox trajectories (motion vectors)
         *   Output: `behaviorProbs` - {"play": 0.8, "rest": 0.1, "chase": 0.05, ...}
@@ -191,7 +206,7 @@ struct DeviceStatePacket {
         *   Output: `stressProxy` (0~1)
         *   Implementation: Simple MLP or rule-based + calibration network
 *   **Data Structures**: `DetectedObject`, `DogState`, `PairState`, `DeviceStatePacket`.
-*   **State Pipeline**: YOLO -> ReID -> Behavior/Stress Head -> StateBuilder -> EventUploader.
+*   **State Pipeline**: YOLO -> DeepSORT (IoU → ReID → Update) -> Behavior/Stress Head -> StateBuilder -> EventUploader.
 
 ### Phase 1: Local Foundation & Dual Mode
 *   **Dual Mode UI**: Camera Mode vs Viewer Mode switcher.

@@ -40,12 +40,14 @@
 **목표**: 온디바이스 파이프라인에 필요한 Swift 데이터 구조를 정의합니다.
 
 ### 1-1. 기본 데이터 모델 정의 (ios-app/Models/)
-- [ ] **DetectedObject** (DetectedObject.swift)
+- [x] **DetectedObject** (DetectedObject.swift)
   - bbox: CGRect — 원본 영상 좌표
   - confidence: Float
   - classId: Int
-  - trackId: Int?
+  - trackId: Int? — DeepSORT track ID
   - embedding: [Float]?
+  - dogId: UUID? — 확정된 강아지 신원
+  - dogName: String? — 강아지 이름
 - [ ] **DogState** (DogState.swift)
   - tempTrackId: Int
   - dogId: UUID?
@@ -82,29 +84,68 @@
 
 ---
 
-## 🎥 Priority 2: iOS Vision Pipeline (YOLO + ReID)
+## 🎥 Priority 2: iOS Vision Pipeline (YOLO + DeepSORT + ReID)
 
-**목표**: YOLO와 ReID를 사용하여 실시간 강아지 감지 및 식별 파이프라인을 구축합니다.
+**목표**: YOLO, DeepSORT, ReID를 사용하여 실시간 강아지 감지, 추적, 식별 파이프라인을 구축합니다.
 
 ### 2-1. YOLO Client (Services/Vision/YOLOClient.swift)
-- [ ] **CoreML 모델 로드**
+- [x] **CoreML 모델 로드**
   - `VNCoreMLModel(for: yolo11n().model)`
-- [ ] **추론 메서드**
+- [x] **추론 메서드**
   - `func predict(pixelBuffer: CVPixelBuffer) -> [DetectedObject]`
   - Post-Processing: Confidence > 0.5, IOU > 0.45
   - bbox, confidence, classId 추출
 
-### 2-2. ReID Tracker (Services/Vision/ReIDTracker.swift)
-- [ ] **CoreML 모델 로드**
-  - ResNet50_ReID 모델
-- [ ] **임베딩 추출**
+### 2-2. DeepSORT Tracker (Services/Vision/Tracking/)
+- [x] **KalmanFilter.swift**
+  - 상수 속도 모델로 위치 예측
+  - `predict()`: 다음 프레임 위치 예측
+  - `update()`: 실제 측정값으로 보정
+- [x] **Track.swift**
+  - 개별 트랙 상태 관리
+  - **Temporal Voting**: 10프레임 투표 시스템
+  - `voteHistory`: 최근 10프레임 dogId 기록
+  - `confirmIdentity()`: 다수결로 신원 확정
+  - `isIdentityConfirmed`: 확정 여부 플래그
+- [x] **DeepSortTracker.swift**
+  - **두 단계 업데이트**:
+    - Phase 1: `matchWithoutReID()` - IoU 매칭, ReID 필요 목록 반환
+    - Phase 2: `finalizeWithReID()` - ReID 결과로 최종 업데이트
+  - Greedy 매칭 알고리즘 (IoU + ReID cost)
+  - Track 수명 관리 (tentative → confirmed → deleted)
+
+### 2-3. ReID Tracker (Services/Vision/ReIDTracker.swift)
+- [x] **CoreML 모델 로드**
+  - ResNet50_ReID 모델 (Int8 quantized)
+- [x] **임베딩 추출**
   - `func extractEmbedding(from image: CIImage) -> [Float]`
   - 224x224 리사이징 후 추론
-- [ ] **강아지 식별**
-  - `func identify(embedding: [Float], knownDogs: [Dog]) -> UUID?`
-  - Cosine Similarity 계산 (threshold > 0.7)
+- [x] **강아지 식별 (Robust)**
+  - `func identifyRobust(embedding: [Float], knownDogs: [Dog]) -> UUID?`
+  - **Voting (Top-3)**: 상위 3개 결과로 투표
+  - **Margin Check (5%)**: 1위와 2위 차이가 5% 이상이어야 확정
+  - Cosine Similarity 계산 (threshold > 0.4)
 
-### 2-3. Reference Data Management (Views/DogProfile/)
+### 2-4. VisionService Integration (Services/Vision/VisionService.swift)
+- [x] **Two-Phase Pipeline**
+  ```swift
+  // Phase 1: DeepSORT preliminary matching
+  let needsReID = deepSortTracker.matchWithoutReID(detections)
+  
+  // Phase 2: Selective ReID (only for unconfirmed tracks)
+  for idx in needsReID {
+      let embedding = reIDTracker.extractEmbedding(...)
+      let dogId = reIDTracker.identifyRobust(...)
+  }
+  
+  // Phase 3: Final update
+  let tracked = deepSortTracker.finalizeWithReID(detections)
+  ```
+- [x] **Performance**
+  - 99% ReID reduction after identity confirmation
+  - Korean logging for debugging
+
+### 2-5. Reference Data Management (Views/DogProfile/)
 - [ ] **AddDogView 확장**
   - "AI 인식용 사진 등록(3~5장)" UI 추가
   - 각 사진에서 강아지 영역 Crop
