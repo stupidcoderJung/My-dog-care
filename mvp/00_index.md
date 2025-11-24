@@ -17,8 +17,8 @@ Camera → YOLO → ReID → 태깅된 이미지 → VLM → VisionResponse → 
 
 ### 🚧 진행할 작업 (MVP Stage 1)
 
-1. **[mvp/01_yolo_reid_integration](./01_yolo_reid_integration/)** - YOLO + ReID 통합
-2. **[mvp/02_vlm_tagged_input](./02_vlm_tagged_input/)** - VLM에 태깅된 이미지 전달
+1. **✅ [mvp/01_yolo_reid_integration](./01_yolo_reid_integration/)** - YOLO + ReID 통합 (완료)
+2. **✅ [mvp/02_vlm_tagged_input](./02_vlm_tagged_input/)** - VLM에 태깅된 이미지 전달 (완료)
 3. **[mvp/03_vlm_state_mapper](./03_vlm_state_mapper/)** - VLM → DogState 매핑
 4. **[mvp/04_state_packet_builder](./04_state_packet_builder/)** - State Packet 생성
 5. **[mvp/05_event_uploader](./05_event_uploader/)** - 백엔드 전송

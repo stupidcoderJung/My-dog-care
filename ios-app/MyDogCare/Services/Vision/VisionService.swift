@@ -8,7 +8,7 @@ import CryptoKit
 import Foundation
 import UIKit
 
-struct DogState: Identifiable {
+struct DogUIState: Identifiable {
     let id: UUID
     let name: String
     let bounds: CGRect
@@ -18,16 +18,19 @@ struct DogState: Identifiable {
 
 final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputSampleBufferDelegate {
     @Published var currentFrame: CGImage?
-    @Published var detectedDogs: [DogState] = []
+    @Published var detectedDogs: [DogUIState] = []
     @Published var lastDetections: [DetectedObject] = []
+    @Published var currentDogStates: [DogState] = [] // Rich data states for logging
 
     private var cachedKnownDogs: [Dog] = [] // Cache for known dogs
+    private var frameBuffer: [(UIImage, [DetectedObject])] = [] // Synchronized buffer for VLM
 
     private let yoloClient: YOLOClient
     private let reidTracker: ReIDTracker?
     private let context: NSManagedObjectContext
     private let visionClient: VisionClient
     private let imageTagger: ImageTagger
+    private let vlmStateMapper: VLMStateMapper
     
     // Camera session (integrated from CameraManager)
     private let captureSession = AVCaptureSession()
@@ -45,6 +48,11 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
     // Display optimization
     private let targetPreviewWidth: CGFloat = 640
     private let colorSpace = CGColorSpaceCreateDeviceRGB()
+    
+    // FPS Tracking
+    @Published var fps: Double = 0.0
+    private var lastFrameTime: TimeInterval = 0
+    private var frameCountForFPS: Int = 0
 
     nonisolated init(
         yoloClient: YOLOClient,
@@ -59,6 +67,7 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
         let client = MainActor.assumeIsolated { VisionClient() }
         self.visionClient = client
         self.imageTagger = ImageTagger()
+        self.vlmStateMapper = VLMStateMapper()
         
         super.init()
         configureSession()
@@ -108,6 +117,24 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
             return
         }
         
+        // FPS Calculation
+        let currentTime = CACurrentMediaTime()
+        if lastFrameTime == 0 {
+            lastFrameTime = currentTime
+        }
+        
+        frameCountForFPS += 1
+        let elapsed = currentTime - lastFrameTime
+        
+        if elapsed >= 1.0 {
+            let currentFPS = Double(frameCountForFPS) / elapsed
+            Task { @MainActor in
+                self.fps = currentFPS
+            }
+            lastFrameTime = currentTime
+            frameCountForFPS = 0
+        }
+        
         // Check processing flag (no isolation needed - simple bool read)
         guard !isProcessingFrame else { return }
         
@@ -134,7 +161,7 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
                 guard let self else { return }
                 
                 let states = detections.map { detection in
-                    DogState(
+                    DogUIState(
                         id: detection.dogId ?? detection.id,
                         name: detection.dogName ?? detection.label.capitalized,
                         bounds: detection.bbox,
@@ -167,16 +194,7 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
                      knownDogs: [Dog],
                      completion: @escaping ([DetectedObject]) -> Void) {
         // 🐕 LOG: Known dogs
-        print("🐕 ProcessFrame: Known dogs count: \(knownDogs.count)")
-        for dog in knownDogs {
-            let dogName = dog.name ?? "unnamed"
-            let hasEmbedding = dog.embedding != nil
-            let refCount = dog.referenceEmbeddingsList.count
-            print("  - \(dogName): has embedding: \(hasEmbedding), refs: \(refCount)")
-            if let emb = dog.embedding {
-                print("    Legacy embedding size: \(emb.count)")
-            }
-        }
+        // print("🐕 ProcessFrame: Known dogs count: \(knownDogs.count)")
         
         yoloClient.predict(pixelBuffer: pixelBuffer) { [weak self] detections in
             guard let self else {
@@ -184,7 +202,7 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
                 return
             }
             
-            print("🎯 YOLO detected \(detections.count) objects")
+            // print("🎯 YOLO detected \(detections.count) objects")
             
             let imageSize = CGSize(width: CVPixelBufferGetWidth(pixelBuffer), height: CVPixelBufferGetHeight(pixelBuffer))
             let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
@@ -198,13 +216,13 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
                 
                 if let tracker = self.reidTracker,
                    let cropRect = self.rectForCropping(from: detection.bbox, imageSize: imageSize) {
-                    print("✅ ReIDTracker available for detection #\(index)")
+                    // print("✅ ReIDTracker available for detection #\(index)")
                     let croppedImage = ciImage.cropped(to: cropRect)
                     reIDGroup.enter()
                     Task {
                         do {
                             let embedding = try await tracker.extractEmbedding(from: croppedImage)
-                            print("  📊 Extracted embedding (size: \(embedding.count))")
+                            // print("  📊 Extracted embedding (size: \(embedding.count))")
                             identified.embedding = embedding
                             
                             let dogId = tracker.identify(
@@ -218,9 +236,9 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
                             if let dogId = dogId,
                                let dog = knownDogs.first(where: { $0.uuid == dogId }) {
                                 identified.dogName = dog.name
-                                print("🎉 MATCH FOUND! Dog ID: \(dogId), Name: \(dog.name ?? "unknown")")
+                                // print("🎉 MATCH FOUND! Dog ID: \(dogId), Name: \(dog.name ?? "unknown")")
                             } else {
-                                print("❌ No match for detection #\(index) (similarity < threshold)")
+                                // print("❌ No match for detection #\(index) (similarity < threshold)")
                             }
                         } catch {
                             print("⚠️ ReID failed for detection #\(index): \(error)")
@@ -234,9 +252,9 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
                     }
                 } else {
                     if self.reidTracker == nil {
-                        print("⚠️ ReIDTracker is nil - cannot identify detection #\(index)")
+                        // print("⚠️ ReIDTracker is nil - cannot identify detection #\(index)")
                     } else {
-                        print("⚠️ Could not crop detection #\(index)")
+                        // print("⚠️ Could not crop detection #\(index)")
                     }
                     syncQueue.sync {
                         identifiedDetections.append(identified)
@@ -245,32 +263,62 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
             }
             
             reIDGroup.notify(queue: .main) {
-                print("✨ ProcessFrame complete: \(identifiedDetections.count) detections processed")
-                for (idx, det) in identifiedDetections.enumerated() {
-                    print("  Detection #\(idx): dogName=\(det.dogName ?? "nil"), dogId=\(det.dogId?.uuidString ?? "nil")")
-                }
+                // print("✨ ProcessFrame complete: \(identifiedDetections.count) detections processed")
                 self.lastDetections = identifiedDetections
+                
+                // Update Frame Buffer (Keep last 10)
+                if let cgImage = self.currentFrame {
+                    let uiImage = UIImage(cgImage: cgImage)
+                    self.frameBuffer.append((uiImage, identifiedDetections))
+                    if self.frameBuffer.count > 10 {
+                        self.frameBuffer.removeFirst()
+                    }
+                }
+                
                 completion(identifiedDetections)
             }
         }
     }
     
     func analyzeWithVLM(
-        frameHistory: [UIImage],
-        detections: [DetectedObject],
         knownDogs: [Dog]
-    ) async throws -> VisionResponse {
-        let recentFrames = Array(frameHistory.suffix(5))
-        let taggedFrames = recentFrames.map { frame in
-            imageTagger.tagImage(frame, detections: detections)
+    ) async throws -> (VisionResponse, [UIImage], [DebugTurn]) {
+        // Use last 5 frames from buffer (resized to 320px in VisionClient)
+        let bufferSnapshot = frameBuffer.suffix(5)
+        guard !bufferSnapshot.isEmpty else {
+            throw NSError(domain: "VisionService", code: -1, userInfo: [NSLocalizedDescriptionKey: "No frames in buffer"])
         }
         
-        let (response, _) = try await visionClient.analyzeStream(
+        let taggedFrames = bufferSnapshot.map { (image, detections) in
+            imageTagger.tagImage(image, detections: detections)
+        }
+        
+        let (response, debugTurns) = try await visionClient.analyzeStream(
             images: taggedFrames,
             dogs: knownDogs
         )
         
-        return response
+        // Map VLM response to DogState (Rich Data)
+        if let (lastImage, lastDetections) = bufferSnapshot.last {
+             let frameSize = lastImage.size
+             let dogStates = vlmStateMapper.mapToDogStates(
+                 vlmResponse: response,
+                 detections: lastDetections,
+                 frameSize: frameSize
+             )
+             
+             await MainActor.run {
+                 self.currentDogStates = dogStates
+                 print("📊 VisionService: Updated currentDogStates with \(dogStates.count) items")
+                 for state in dogStates {
+                     print("  - Dog: \(state.dogId?.uuidString ?? "Unknown")")
+                     print("    Action: \(state.vlmAction ?? "nil") -> \(state.behaviorProbs)")
+                     print("    Emotion: \(state.vlmEmotion ?? "nil") -> Stress: \(state.stressProxy ?? 0.0)")
+                 }
+             }
+        }
+        
+        return (response, taggedFrames, debugTurns)
     }
 
     // MARK: - Camera Session Configuration
@@ -363,11 +411,11 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
         detection: DetectedObject,
         matchedDog: Dog?,
         normalizedBounds: CGRect
-    ) -> DogState {
+    ) -> DogUIState {
         let identifier = matchedDog?.uuid ?? UUID()
         let displayName = matchedDog?.name ?? detection.label.capitalized
 
-        return DogState(
+        return DogUIState(
             id: identifier,
             name: displayName,
             bounds: normalizedBounds,

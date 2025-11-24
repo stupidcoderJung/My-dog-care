@@ -58,6 +58,15 @@ struct OnAirView: View {
                         .padding(16)
                     }
                 }
+                .overlay(alignment: .topTrailing) {
+                    Text(String(format: "FPS: %.1f", visionService.fps))
+                        .font(.caption.monospaced())
+                        .foregroundColor(.green)
+                        .padding(6)
+                        .background(.black.opacity(0.6))
+                        .cornerRadius(4)
+                        .padding(8)
+                }
                 
                 // 2. Image Strip (Thin)
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -199,40 +208,21 @@ struct OnAirView: View {
         // Let's check VisionService again. It has `currentFrame`.
         // I'll implement a simple burst capture here using `currentFrame` and delays.
         
-        var frames: [UIImage] = []
-        for _ in 0..<5 {
-            if let cgImage = visionService.currentFrame {
-                frames.append(UIImage(cgImage: cgImage))
-            }
-            try? await Task.sleep(nanoseconds: 200_000_000) // 0.2s
-        }
-        
-        await MainActor.run {
-            self.capturedImages = frames
-        }
-        
-        guard !frames.isEmpty else {
-            await MainActor.run {
-                self.errorMessage = "Failed to capture images"
-            }
-            return
-        }
+        // Manual frame capture removed - VisionService now handles buffering
+
         
         do {
             // Convert FetchedResults to Array for the async call
             let dogList = dogs.map { $0 }
             
-            // Use VisionService to analyze with VLM (which includes tagging!)
-            // We need detections for tagging. VisionService has `lastDetections`.
-            let detections = visionService.lastDetections
-            
-            let response = try await visionService.analyzeWithVLM(
-                frameHistory: frames,
-                detections: detections,
+            // Use VisionService to analyze with VLM (uses buffered frames)
+            let (response, taggedImages, debugTurns) = try await visionService.analyzeWithVLM(
                 knownDogs: dogList
             )
             
             await MainActor.run {
+                self.capturedImages = taggedImages // Update UI with tagged images
+                self.debugTurns = debugTurns // Update debug history
                 // Format VisionResponse to String for display
                 var formattedResult = "Time: \(response.timestamp)\n\n"
                 

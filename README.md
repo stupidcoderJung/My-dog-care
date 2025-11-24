@@ -98,7 +98,8 @@ My-dog-care/
 ```
 
 ## 📖 Documentation
-- [Project Roadmap](docs/project_roadmap.md) - Detailed implementation checklist
+- [Project Roadmap](docs/project_roadmap_new.md) - Detailed implementation checklist
+- [MVP Plans](mvp/00_index.md) - MVP stage implementation plans
 - [AI Integration Plan](ai_integration_plan.md) - Architecture overview
 - [AI Integration Plan (한국어)](ai_integration_plan_kr.md) - 한국어 아키텍처 개요
 

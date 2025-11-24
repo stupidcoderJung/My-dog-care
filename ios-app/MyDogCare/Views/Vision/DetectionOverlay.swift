@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct DetectionOverlay: View {
-    let detectedDogs: [DogState]
+    let detectedDogs: [DogUIState]
     let imageSize: CGSize
     
     var body: some View {

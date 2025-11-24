@@ -28,6 +28,8 @@
 		A775EF952ED203850030EDB3 /* Dog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EF932ED203850030EDB3 /* Dog.swift */; };
 		A775EFBA2ED20A860030EDB3 /* yolo11n.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = A775EFB72ED20A860030EDB3 /* yolo11n.mlpackage */; };
 		A775EFC02ED2E1ED0030EDB3 /* ResNet50_ReID_Int8.mlmodel in Sources */ = {isa = PBXBuildFile; fileRef = A775EFBF2ED2E1ED0030EDB3 /* ResNet50_ReID_Int8.mlmodel */; };
+		A775EFC22ED3104A0030EDB3 /* VLMStateMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EFC12ED3104A0030EDB3 /* VLMStateMapper.swift */; };
+		A775EFC42ED310710030EDB3 /* DogState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EFC32ED310710030EDB3 /* DogState.swift */; };
 		A79FE2802EC604F40069D557 /* Clerk in Frameworks */ = {isa = PBXBuildFile; productRef = A79FE27F2EC604F40069D557 /* Clerk */; };
 		D2E0A7202C9D4D2600A1A1A1 /* MyDogCareApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A7102C9D4C5E00A1A1A1 /* MyDogCareApp.swift */; };
 		D2E0A7212C9D4D2600A1A1A1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A7112C9D4C5E00A1A1A1 /* ContentView.swift */; };
@@ -80,6 +82,8 @@
 		A775EF932ED203850030EDB3 /* Dog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dog.swift; sourceTree = "<group>"; };
 		A775EFB72ED20A860030EDB3 /* yolo11n.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = yolo11n.mlpackage; sourceTree = "<group>"; };
 		A775EFBF2ED2E1ED0030EDB3 /* ResNet50_ReID_Int8.mlmodel */ = {isa = PBXFileReference; lastKnownFileType = file.mlmodel; path = ResNet50_ReID_Int8.mlmodel; sourceTree = "<group>"; };
+		A775EFC12ED3104A0030EDB3 /* VLMStateMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VLMStateMapper.swift; sourceTree = "<group>"; };
+		A775EFC32ED310710030EDB3 /* DogState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DogState.swift; sourceTree = "<group>"; };
 		B59485244961436191C9F1060CFA2E0E /* ModelRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelRegistry.swift; sourceTree = "<group>"; };
 		D2E0A7042C9D4C1200A1A1A1 /* MyDogCare.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyDogCare.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D2E0A7102C9D4C5E00A1A1A1 /* MyDogCareApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyDogCareApp.swift; sourceTree = "<group>"; };
@@ -213,6 +217,7 @@
 		D2E0A72D2C9D4D8300A1A1A1 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				A775EFC12ED3104A0030EDB3 /* VLMStateMapper.swift */,
 				A775EF8C2ED203400030EDB3 /* Vision */,
 				A775EF6E2ED07C4B0030EDB3 /* ChatService.swift */,
 				A775EF682ED0385A0030EDB3 /* CameraManager.swift */,
@@ -226,6 +231,7 @@
 		D2E0A72E2C9D4D8300A1A1A1 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				A775EFC32ED310710030EDB3 /* DogState.swift */,
 				A775EF922ED203850030EDB3 /* DetectedObject.swift */,
 				A775EF932ED203850030EDB3 /* Dog.swift */,
 				A775EF782ED124300030EDB3 /* CareEvent.swift */,
@@ -323,6 +329,7 @@
 				D2E0A7252C9D4D2600A1A1A1 /* AsyncAvatarView.swift in Sources */,
 				D2E0A7262C9D4D2600A1A1A1 /* AuthViewModel.swift in Sources */,
 				D2E0A7272C9D4D2600A1A1A1 /* ClerkAuthService.swift in Sources */,
+				A775EFC22ED3104A0030EDB3 /* VLMStateMapper.swift in Sources */,
 				A775EF8D2ED203400030EDB3 /* YOLOClient.swift in Sources */,
 				A775EF8E2ED203400030EDB3 /* ImageTagger.swift in Sources */,
 				A775EF8F2ED203400030EDB3 /* ReIDTracker.swift in Sources */,
@@ -333,6 +340,7 @@
 				D2E0A7332C9D50A400A1A1A1 /* DogListView.swift in Sources */,
 				A775EFC02ED2E1ED0030EDB3 /* ResNet50_ReID_Int8.mlmodel in Sources */,
 				A775EF6B2ED038660030EDB3 /* OnAirView.swift in Sources */,
+				A775EFC42ED310710030EDB3 /* DogState.swift in Sources */,
 				5FD3C2AB2F1C123400FEDCBA /* DogDetailView.swift in Sources */,
 				A775EF6F2ED07C4B0030EDB3 /* ChatService.swift in Sources */,
 				D2E0A7352C9D569B00A1A1A1 /* AddDogView.swift in Sources */,

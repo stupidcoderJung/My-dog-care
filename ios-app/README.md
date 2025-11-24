@@ -13,7 +13,10 @@ Results are logged and uploaded to backend for training data collection (~10k sa
 
 ### On-Device AI Pipeline
 - **YOLO Object Detection**: YOLOv11-nano for real-time dog detection
-- **ReID Identification**: ResNet50-based feature extraction for individual dog identification
+- **ReID Identification**: ResNet50-based feature extraction (Int8 quantized) for individual dog identification
+  - Int8 quantization reduces model size from 98MB to 23.7MB (4x smaller)
+  - Inference speed improved 2-3x on Neural Engine
+  - Core Data caching eliminates per-frame database queries
 - **Behavior Classifier**: Lightweight MLP/1D-CNN for action classification
   - Input: Recent N-frame bbox trajectories (motion vectors)
   - Output: `behaviorProbs` - {"play": 0.8, "rest": 0.1, "chase": 0.05, ...}
@@ -60,7 +63,7 @@ Results are logged and uploaded to backend for training data collection (~10k sa
 1. Open `MyDogCare.xcodeproj` in Xcode 15+
 2. Ensure models are in `Resources/Models/`:
    - `yolo11n.mlpackage`
-   - `ResNet50_ReID.mlmodel`
+   - `ResNet50_ReID_Int8.mlmodel`
 3. Build and run on iOS 17+ device
 
 ## Models

@@ -109,45 +109,12 @@ final class VisionClient: ObservableObject {
             DebugTurn(role: "System", content: systemPrompt, images: [])
         ]
         
-        // 2. Build History (Multi-turn)
-        print("DEBUG: Starting to process \(dogs.count) dogs for history.")
-        for dog in dogs {
-            let name = dog.name ?? "Unknown"
-            let breed = dog.breed ?? "Unknown"
-            let photoId = dog.photoId
-            let aiDescription = dog.aiDescription ?? "Analysis: This is \(name), a \(breed)."
-            
-            print("DEBUG: Processing dog: \(name), PhotoID: \(String(describing: photoId))")
-            
-            // Load dog image
-            if let dogImage = DogPhotoStore.loadImage(id: dog.photoId) {
-                print("DEBUG: Successfully loaded image for \(name)")
-                let maxDimension: CGFloat = 512
-                let resized = dogImage.resizedToFit(maxDimension: maxDimension) ?? dogImage
-                if let data = resized.jpegData(compressionQuality: 0.5) {
-                    let base64 = data.base64EncodedString()
-                    
-                    // User Turn: Image FIRST, then Text
-                    let userText = "This is \(name). Breed: \(breed)."
-                    let userTurnContent: [[String: Any]] = [
-                        ["type": "image_url", "image_url": ["url": "data:image/jpeg;base64,\(base64)"]],
-                        ["type": "text", "text": userText]
-                    ]
-                    
-                    messages.append(["role": "user", "content": userTurnContent])
-                    debugTurns.append(DebugTurn(role: "User", content: userText, images: [dogImage]))
-                    
-                    // Assistant Turn
-                    messages.append(["role": "assistant", "content": aiDescription])
-                    debugTurns.append(DebugTurn(role: "Assistant", content: aiDescription, images: []))
-                }
-            } else {
-                print("DEBUG: Failed to load image for \(name) with ID: \(String(describing: photoId))")
-            }
-        }
+        // 2. Build History (Multi-turn) - REMOVED as per request
+        // The user requested to remove previous image history as the current images will be tagged.
+        print("DEBUG: Skipping history generation as per user request.")
         
         // 3. Current Request (Camera Stream)
-        let maxDimension: CGFloat = 512
+        let maxDimension: CGFloat = 192
         var currentImageContent: [[String: Any]] = []
         
         let dogNamesString = dogs.compactMap { $0.name }.joined(separator: ", ")
@@ -239,8 +206,7 @@ final class VisionClient: ObservableObject {
             "model": "qwen3-vl-2b-instruct",
             "messages": messages,
             "max_tokens": 1000,
-            "temperature": 0.1,
-            "response_format": ["type": "json_object"]
+            "temperature": 0.1
         ]
         
         var request = URLRequest(url: baseURL)

@@ -18,9 +18,17 @@ class ImageTagger {
                 let isKnown = detection.dogName != nil
                 let color = isKnown ? UIColor.green : UIColor.red
                 
+                // Denormalize bbox and flip Y-axis (Vision bottom-left -> UIKit top-left)
+                let rect = CGRect(
+                    x: detection.bbox.origin.x * image.size.width,
+                    y: (1.0 - detection.bbox.origin.y - detection.bbox.height) * image.size.height,
+                    width: detection.bbox.width * image.size.width,
+                    height: detection.bbox.height * image.size.height
+                )
+                
                 cgContext.setStrokeColor(color.cgColor)
                 cgContext.setLineWidth(3.0)
-                cgContext.stroke(detection.bbox)
+                cgContext.stroke(rect)
                 
                 // 3. Draw dog name
                 if let dogName = detection.dogName {
@@ -32,8 +40,8 @@ class ImageTagger {
                     ]
                     
                     let textPoint = CGPoint(
-                        x: detection.bbox.minX,
-                        y: max(0, detection.bbox.minY - 30) // Ensure text doesn't go off-screen
+                        x: rect.minX,
+                        y: max(0, rect.minY - 30) // Ensure text doesn't go off-screen
                     )
                     
                     (text as NSString).draw(at: textPoint, withAttributes: attributes)
@@ -47,8 +55,8 @@ class ImageTagger {
                     ]
                     
                     let textPoint = CGPoint(
-                        x: detection.bbox.minX,
-                        y: max(0, detection.bbox.minY - 30)
+                        x: rect.minX,
+                        y: max(0, rect.minY - 30)
                     )
                     
                     (text as NSString).draw(at: textPoint, withAttributes: attributes)

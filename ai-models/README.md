@@ -45,18 +45,6 @@ python export_reid.py
 ### 3. Behavior Classifier (Lightweight Head)
 - **Model**: Small MLP or 1D-CNN
 - **Input Features**: Recent N-frame bbox trajectories (motion vectors)
-- **Output**: Behavior probabilities (play, rest, chase, etc.)
-- **Export**: CoreML
-
-**Training**:
-```bash
-# Train on annotated sequences
-python train_behavior.py --data behavior_sequences.json
-```
-
-### 3. Behavior Classifier (Lightweight Head)
-- **Model**: Small MLP or 1D-CNN
-- **Input Features**: Recent N-frame bbox trajectories (motion vectors)
   - Normalized speed, direction, acceleration
   - Distance changes between frames
 - **Output**: Behavior probabilities (play, rest, chase, avoid, freeze, face_off)
@@ -73,6 +61,7 @@ python train_behavior.py --data behavior_sequences.json --epochs 50
 python export_behavior.py
 # Output: BehaviorClassifier.mlmodel
 ```
+
 
 ### 4. Stress Proxy Head
 - **Model**: Small regression head (MLP with 1-2 hidden layers)
@@ -96,11 +85,6 @@ python train_stress.py --data stress_labels.json
 python export_stress.py
 # Output: StressProxy.mlmodel
 ```
-
-## VLM Auto-Labeling (Gemini 2.5 Pro)
-- **Model**: Small regression head
-- **Input**: Behavior probs + motion statistics
-- **Output**: Stress estimate (0~1)
 
 ## VLM Auto-Labeling (Gemini 2.5 Pro)
 

@@ -25,8 +25,8 @@ enum YOLOClientError: Error, LocalizedError {
 
 final class YOLOClient {
     private enum Constants {
-        static let confidenceThreshold: Float = 0.1 // Lowered for debugging
-        static let allowedLabels: Set<String> = ["dog"]
+        static let confidenceThreshold: Float = 0.01 // Lowered for debugging
+        static let allowedLabels: Set<String> = ["dog","cat"]
         static let queueLabel = "com.mydogcare.yolo-client"
     }
 
@@ -68,7 +68,7 @@ private extension YOLOClient {
         do {
             let model = try loadVisionModel()
             let request = VNCoreMLRequest(model: model)
-            request.imageCropAndScaleOption = .scaleFill
+            request.imageCropAndScaleOption = .scaleFit
             return request
         } catch {
             print("--------------------------------------------------")
