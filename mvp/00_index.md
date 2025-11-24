@@ -33,11 +33,15 @@ Camera Frame (CVPixelBuffer)
     ↓
 YOLOClient.predict()
     ↓
-[DetectedObject] (bbox, confidence, embedding)
+[DetectedObject] (bbox, confidence)
     ↓
-ReIDTracker.identify()
+DeepSortTracker.matchWithoutReID() (Phase 1: IoU 매칭)
     ↓
-[DetectedObject with dogId] (태깅 완료)
+ReIDTracker.identify() (Phase 2: 필요한 것만 실행)
+    ↓
+DeepSortTracker.finalizeWithReID() (Phase 3: 최종 업데이트)
+    ↓
+[DetectedObject with trackId, dogId, dogName] (추적 + 신원 확정)
     ↓
 이미지에 강아지 이름 오버레이 (draw text on image)
     ↓
@@ -62,7 +66,7 @@ EventUploader.upload() → POST /events/batch
 
 ### iOS 내부
 - **Models**: DetectedObject, DogState, PairState, DeviceStatePacket
-- **Services**: YOLOClient, ReIDTracker, VisionClient, VLMStateMapper, StateBuilder, EventUploader
+- **Services**: YOLOClient, DeepSortTracker, KalmanFilter, Track, ReIDTracker, VisionClient, VLMStateMapper, StateBuilder, EventUploader
 - **Views**: OnAirView, OverlayView
 
 ### 참고 문서

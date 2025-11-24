@@ -13,9 +13,15 @@ Results are logged and uploaded to backend for training data collection (~10k sa
 
 ### On-Device AI Pipeline
 - **YOLO Object Detection**: YOLOv11-nano for real-time dog detection
-- **ReID Identification**: ResNet50-based feature extraction (Int8 quantized) for individual dog identification
+- **DeepSORT Tracking System**: Advanced multi-object tracking
+  - **Kalman Filter**: Constant velocity model for position prediction
+  - **Temporal Voting**: 10-frame majority vote for identity confirmation
+  - **ReID Optimization**: 99% reduction after confirmation (first 10 frames only)
+  - **Track Management**: Handles occlusions, crossings, and ID persistence
+- **ReID Identification**: ResNet50-based feature extraction (Int8 quantized)
   - Int8 quantization reduces model size from 98MB to 23.7MB (4x smaller)
   - Inference speed improved 2-3x on Neural Engine
+  - **Robust Matching**: Voting (Top-3) + Margin Check (5%) for similar dogs
   - Core Data caching eliminates per-frame database queries
 - **Behavior Classifier**: Lightweight MLP/1D-CNN for action classification
   - Input: Recent N-frame bbox trajectories (motion vectors)
@@ -29,7 +35,7 @@ Results are logged and uploaded to backend for training data collection (~10k sa
 ### Dual Mode Operation
 - **Camera Mode (Sender)**: Dedicated monitoring device
   - 24/7 operation with screen-off prevention
-  - Continuous YOLO + ReID processing
+  - Continuous YOLO + DeepSORT processing
   - State packet generation every second
   - Automatic clip triggering on events
   
@@ -40,14 +46,17 @@ Results are logged and uploaded to backend for training data collection (~10k sa
   - Historical analysis
 
 ### Data Structures
-- `DetectedObject`: YOLO output (bbox, confidence, embedding)
+- `DetectedObject`: YOLO output (bbox, confidence, trackId, embedding, dogId, dogName)
 - `DogState`: Per-dog state (normalized bbox, speed, behavior probs, stress)
 - `PairState`: Pair-wise relations (distance, affinity, tension)
 - `DeviceStatePacket`: Complete state snapshot sent to backend
 
 ### Core Services
--  `YOLOClient`: CoreML model inference
-- `ReIDTracker`: Identity matching
+- `YOLOClient`: CoreML model inference
+- `ReIDTracker`: Identity matching with robust voting
+- **`DeepSortTracker`**: Two-phase tracking (IoU → ReID → Update)
+- **`KalmanFilter`**: Motion prediction for smooth tracking
+- **`Track`**: Individual track state management with temporal voting
 - `StateBuilder`: Convert detections to `DogState`
 - `PairBuilder`: Generate pair-wise relationships
 - `EventUploader`: Batch upload to backend
