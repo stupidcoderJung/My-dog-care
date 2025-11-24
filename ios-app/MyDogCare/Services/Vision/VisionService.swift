@@ -278,24 +278,26 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
                 }
             } else {
                 // No ReID needed - all tracks confirmed!
-                let trackedDetections = self.deepSortTracker.finalizeWithReID(detections: reidDetections)
-                
-                self.lastDetections = trackedDetections
-                
-                // Update Frame Buffer
-                if let cgImage = self.currentFrame {
-                    let uiImage = UIImage(cgImage: cgImage)
-                    self.frameBuffer.append((uiImage, trackedDetections, timestamp))
-                    if self.frameBuffer.count > 10 {
-                        self.frameBuffer.removeFirst()
+                DispatchQueue.main.async {
+                    let trackedDetections = self.deepSortTracker.finalizeWithReID(detections: reidDetections)
+                    
+                    self.lastDetections = trackedDetections
+                    
+                    // Update Frame Buffer
+                    if let cgImage = self.currentFrame {
+                        let uiImage = UIImage(cgImage: cgImage)
+                        self.frameBuffer.append((uiImage, trackedDetections, timestamp))
+                        if self.frameBuffer.count > 10 {
+                            self.frameBuffer.removeFirst()
+                        }
                     }
+                    
+                    completion(trackedDetections, timestamp)
+                    
+                    // Generate packet
+                    let dogStates = trackedDetections.map { self.mapToDogState(detection: $0, imageSize: imageSize, timestamp: timestamp) }
+                    _ = self.generateStatePacket(dogStates: dogStates, sessionId: UUID().uuidString)
                 }
-                
-                completion(trackedDetections, timestamp)
-                
-                // Generate packet
-                let dogStates = trackedDetections.map { self.mapToDogState(detection: $0, imageSize: imageSize, timestamp: timestamp) }
-                _ = self.generateStatePacket(dogStates: dogStates, sessionId: UUID().uuidString)
             }
         }
     }

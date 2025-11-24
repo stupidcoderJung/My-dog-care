@@ -62,6 +62,11 @@ final class Track {
             voteHistory.removeFirst()
         }
         
+        // Always update dogName from detection (if available)
+        if detection.dogId != nil && detection.dogName != nil {
+            self.dogName = detection.dogName
+        }
+        
         // Confirm identity after 10 votes (or when we have enough data)
         if !isIdentityConfirmed && voteHistory.count >= maxVotes {
             confirmIdentity()
