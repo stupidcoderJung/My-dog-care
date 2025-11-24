@@ -33,8 +33,11 @@ MyDogCare is an advanced dog monitoring and care system that combines:
 ## 📊 Key Features
 
 ### Real-Time Intelligence
-- Multi-dog detection and tracking
-- Individual identification via ReID
+- Multi-dog detection and tracking with **DeepSORT**
+- Individual identification via ReID with **Temporal Voting**
+- **99% ReID reduction** after identity confirmation (10-frame voting)
+- **Kalman Filter** for smooth tracking and motion prediction
+- ID persistence across brief occlusions (up to 5 frames)
 - Behavior classification (play, rest, chase, etc.)
 - Stress level estimation
 - Pair-wise relationship tracking (affinity, tension)
