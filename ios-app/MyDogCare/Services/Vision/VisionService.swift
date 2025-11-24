@@ -199,8 +199,6 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
                      timestamp: Date,
                      knownDogs: [Dog],
                      completion: @escaping ([DetectedObject], Date) -> Void) {
-        // 🐕 LOG: Known dogs
-        // print("🐕 ProcessFrame: Known dogs count: \(knownDogs.count)")
         
         yoloClient.predict(pixelBuffer: pixelBuffer) { [weak self] detections in
             guard let self else {
@@ -208,71 +206,83 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
                 return
             }
             
-            // print("🎯 YOLO detected \(detections.count) objects")
-            
             let imageSize = CGSize(width: CVPixelBufferGetWidth(pixelBuffer), height: CVPixelBufferGetHeight(pixelBuffer))
             let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
             
-            var identifiedDetections: [DetectedObject] = []
-            let syncQueue = DispatchQueue(label: "com.mydogcare.detectionSync")
-            let reIDGroup = DispatchGroup()
+            // PHASE 1: DeepSORT preliminary matching (IoU only, no ReID)
+            let detectionsNeedingReID = self.deepSortTracker.matchWithoutReID(detections: detections)
             
-            for (index, detection) in detections.enumerated() {
-                var identified = detection
+            // PHASE 2: Run ReID ONLY for detections that need it
+            var reidDetections = detections
+            
+            if !detectionsNeedingReID.isEmpty {
+                let syncQueue = DispatchQueue(label: "com.mydogcare.detectionSync")
+                let reIDGroup = DispatchGroup()
                 
-                // Check if this detection needs ReID
-                // Skip ReID if we already have a confirmed Track for this bbox location
-                var needsReID = true
-                
-                // We don't have trackId yet (that's assigned by DeepSORT)
-                // So we skip ReID optimization for now and let DeepSORT handle it
-                // The optimization will happen in DeepSORT's update method
-                
-                if let tracker = self.reidTracker,
-                   let cropRect = self.rectForCropping(from: detection.bbox, imageSize: imageSize) {
-                    let croppedImage = ciImage.cropped(to: cropRect)
-                    reIDGroup.enter()
-                    Task {
-                        do {
-                            let embedding = try await tracker.extractEmbedding(from: croppedImage)
-                            identified.embedding = embedding
-                            
-                            let dogId = tracker.identifyRobust(
-                                embedding: embedding,
-                                knownDogs: knownDogs,
-                                threshold: 0.4,
-                                margin: 0.05
-                            )
-                            
-                            // Store the result (DeepSORT will handle voting)
-                            identified.dogId = dogId
-                            if let dogId = dogId,
-                               let dog = knownDogs.first(where: { $0.uuid == dogId }) {
-                                identified.dogName = dog.name
+                for detectionIdx in detectionsNeedingReID {
+                    var detection = detections[detectionIdx]
+                    
+                    if let tracker = self.reidTracker,
+                       let cropRect = self.rectForCropping(from: detection.bbox, imageSize: imageSize) {
+                        let croppedImage = ciImage.cropped(to: cropRect)
+                        reIDGroup.enter()
+                        Task {
+                            do {
+                                let embedding = try await tracker.extractEmbedding(from: croppedImage)
+                                detection.embedding = embedding
+                                
+                                let dogId = tracker.identifyRobust(
+                                    embedding: embedding,
+                                    knownDogs: knownDogs,
+                                    threshold: 0.4,
+                                    margin: 0.05
+                                )
+                                
+                                detection.dogId = dogId
+                                if let dogId = dogId,
+                                   let dog = knownDogs.first(where: { $0.uuid == dogId }) {
+                                    detection.dogName = dog.name
+                                }
+                            } catch {
+                                print("⚠️ ReID failed for detection #\(detectionIdx): \(error)")
                             }
-                        } catch {
-                            print("⚠️ ReID failed for detection #\(index): \(error)")
+                            
+                            syncQueue.sync {
+                                reidDetections[detectionIdx] = detection
+                            }
+                            reIDGroup.leave()
                         }
-                        
-                        syncQueue.sync {
-                            identifiedDetections.append(identified)
-                        }
-                        reIDGroup.leave()
-                    }
-                } else {
-                    syncQueue.sync {
-                        identifiedDetections.append(identified)
                     }
                 }
-            }
-            
-            reIDGroup.notify(queue: .main) {
-                // DeepSORT handles all tracking and identity management
-                let trackedDetections = self.deepSortTracker.update(detections: identifiedDetections)
                 
-                //print("✨ ProcessFrame complete: \(trackedDetections.count) tracked objects")
+                reIDGroup.notify(queue: .main) {
+                    // PHASE 3: DeepSORT final update with ReID results
+                    let trackedDetections = self.deepSortTracker.finalizeWithReID(detections: reidDetections)
+                    
+                    self.lastDetections = trackedDetections
+                    
+                    // Update Frame Buffer
+                    if let cgImage = self.currentFrame {
+                        let uiImage = UIImage(cgImage: cgImage)
+                        self.frameBuffer.append((uiImage, trackedDetections, timestamp))
+                        if self.frameBuffer.count > 10 {
+                            self.frameBuffer.removeFirst()
+                        }
+                    }
+                    
+                    completion(trackedDetections, timestamp)
+                    
+                    // Generate packet
+                    let dogStates = trackedDetections.map { self.mapToDogState(detection: $0, imageSize: imageSize, timestamp: timestamp) }
+                    _ = self.generateStatePacket(dogStates: dogStates, sessionId: UUID().uuidString)
+                }
+            } else {
+                // No ReID needed - all tracks confirmed!
+                let trackedDetections = self.deepSortTracker.finalizeWithReID(detections: reidDetections)
+                
                 self.lastDetections = trackedDetections
-                // Update Frame Buffer (Keep last 10)
+                
+                // Update Frame Buffer
                 if let cgImage = self.currentFrame {
                     let uiImage = UIImage(cgImage: cgImage)
                     self.frameBuffer.append((uiImage, trackedDetections, timestamp))
@@ -282,10 +292,10 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
                 }
                 
                 completion(trackedDetections, timestamp)
-                // Generate packet for real-time geometric visualization
-                let imageSize = CGSize(width: CVPixelBufferGetWidth(pixelBuffer), height: CVPixelBufferGetHeight(pixelBuffer))
+                
+                // Generate packet
                 let dogStates = trackedDetections.map { self.mapToDogState(detection: $0, imageSize: imageSize, timestamp: timestamp) }
-                _ = self.generateStatePacket(dogStates: dogStates, sessionId: UUID().uuidString) // Use temp session ID for real-time
+                _ = self.generateStatePacket(dogStates: dogStates, sessionId: UUID().uuidString)
             }
         }
     }

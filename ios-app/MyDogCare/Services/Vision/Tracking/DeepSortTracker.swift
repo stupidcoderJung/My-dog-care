@@ -123,6 +123,118 @@ final class DeepSortTracker {
         return results
     }
     
+    // MARK: - Two-Phase Update (ReID Optimization)
+    
+    /// Phase 1: Match detections to tracks using only IoU (no ReID)
+    /// Returns indices of detections that need ReID
+    func matchWithoutReID(detections: [DetectedObject]) -> [Int] {
+        print("🔄 DeepSORT Phase 1: Matching \(detections.count) detections. Active tracks: \(tracks.count), Confirmed: \(tracks.filter { $0.isIdentityConfirmed }.count)")
+        
+        // 1. Predict
+        for track in tracks {
+            track.predict()
+        }
+        
+        // 2. Match using IoU only
+        let (matches, unmatchedTracks, unmatchedDetections) = matchIoUOnly(tracks: tracks, detections: detections)
+        
+        print("  📊 Match result: \(matches.count) matched, \(unmatchedTracks.count) unmatched tracks, \(unmatchedDetections.count) unmatched detections")
+        
+        // 3. Identify which detections need ReID
+        var needsReID: Set<Int> = []
+        
+        // Matched detections: only need ReID if track is NOT confirmed
+        for (trackIdx, detectionIdx) in matches {
+            let track = tracks[trackIdx]
+            if !track.isIdentityConfirmed {
+                needsReID.insert(detectionIdx)
+                print("  🔍 Detection #\(detectionIdx) needs ReID (matched to unconfirmed Track #\(track.trackId))")
+            } else {
+                print("  ✅ Detection #\(detectionIdx) SKIP ReID (matched to confirmed Track #\(track.trackId))")
+            }
+        }
+        
+        // Unmatched detections: always need ReID (new tracks)
+        for detectionIdx in unmatchedDetections {
+            needsReID.insert(detectionIdx)
+            print("  🆕 Detection #\(detectionIdx) needs ReID (new/unmatched)")
+        }
+        
+        let skipCount = detections.count - needsReID.count
+        print("⚡ ReID Skip: \(skipCount)/\(detections.count) detections (\(Int(Float(skipCount)/Float(max(1, detections.count))*100))%)")
+        
+        return Array(needsReID)
+    }
+    
+    /// Phase 2: Finalize with ReID results
+    func finalizeWithReID(detections: [DetectedObject]) -> [DetectedObject] {
+        var results: [DetectedObject] = []
+        
+        // Match again (matching is cheap, ReID was expensive)
+        let (matches, unmatchedTracks, unmatchedDetections) = match(tracks: tracks, detections: detections)
+        
+        // Update matched tracks
+        for (trackIdx, detectionIdx) in matches {
+            tracks[trackIdx].update(detection: detections[detectionIdx])
+        }
+        
+        // Add matched detections to results
+        for (trackIdx, detectionIdx) in matches {
+            var detection = detections[detectionIdx]
+            let track = tracks[trackIdx]
+            
+            detection.trackId = track.trackId
+            detection.bbox = track.currentBBox
+            detection.dogId = track.dogId
+            detection.dogName = track.dogName
+            
+            results.append(detection)
+        }
+        
+        // Create new tracks
+        for detectionIdx in unmatchedDetections {
+            let detection = detections[detectionIdx]
+            let newTrack = initTrack(detection: detection)
+            
+            var result = detection
+            result.trackId = newTrack.trackId
+            result.dogId = newTrack.dogId
+            result.dogName = newTrack.dogName
+            results.append(result)
+        }
+        
+        // Mark unmatched tracks as missed
+        for unmatchedIdx in unmatchedTracks {
+            tracks[unmatchedIdx].markMissed()
+        }
+        
+        // Add coasting tracks
+        for trackIdx in unmatchedTracks {
+            let track = tracks[trackIdx]
+            if track.isConfirmed() && track.timeSinceUpdate < 5 {
+                let prediction = DetectedObject(
+                    bbox: track.currentBBox,
+                    confidence: 0.0,
+                    classId: 0,
+                    label: track.dogName ?? "dog",
+                    trackId: track.trackId,
+                    embedding: track.lastEmbedding,
+                    dogId: track.dogId,
+                    dogName: track.dogName
+                )
+                results.append(prediction)
+            }
+        }
+        
+        // Delete lost tracks
+        tracks.removeAll { track in
+            return track.state == .deleted
+        }
+        
+        return results
+    }
+
+    
     private func initTrack(detection: DetectedObject) -> Track {
         let track = Track(
             trackId: nextTrackId,
@@ -155,6 +267,43 @@ final class DeepSortTracker {
                 let cost = calculateCost(track: track, detection: det)
                 if cost < 1.0 { // Threshold
                     costs.append((tIdx, dIdx, cost))
+                }
+            }
+        }
+        
+        // Sort by cost ascending
+        costs.sort { $0.cost < $1.cost }
+        
+        // Greedy assignment
+        for (tIdx, dIdx, _) in costs {
+            if unmatchedTracks.contains(tIdx) && unmatchedDetections.contains(dIdx) {
+                matches.append((tIdx, dIdx))
+                unmatchedTracks.remove(tIdx)
+                unmatchedDetections.remove(dIdx)
+            }
+        }
+        
+        return (matches, Array(unmatchedTracks), Array(unmatchedDetections))
+    }
+    
+    // IoU-only matching (for Phase 1)
+    private func matchIoUOnly(tracks: [Track], detections: [DetectedObject]) -> ([(Int, Int)], [Int], [Int]) {
+        var matches: [(Int, Int)] = []
+        var unmatchedTracks = Set(0..<tracks.count)
+        var unmatchedDetections = Set(0..<detections.count)
+        
+        if tracks.isEmpty || detections.isEmpty {
+            return ([], Array(unmatchedTracks), Array(unmatchedDetections))
+        }
+        
+        // Calculate IoU costs only
+        var costs: [(trackIdx: Int, detIdx: Int, cost: Float)] = []
+        
+        for (tIdx, track) in tracks.enumerated() {
+            for (dIdx, det) in detections.enumerated() {
+                let iou = calculateIoU(track.currentBBox, det.bbox)
+                if iou > 0.1 {  // Minimum IoU threshold
+                    costs.append((tIdx, dIdx, 1.0 - iou))
                 }
             }
         }
