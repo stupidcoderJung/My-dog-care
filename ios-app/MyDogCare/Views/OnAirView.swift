@@ -17,6 +17,10 @@ struct OnAirView: View {
     @State private var isAnalyzing = false
     @State private var errorMessage: String?
     
+    // Event Uploader (initialized with localhost for testing)
+//    @StateObject private var eventUploader = EventUploader(baseURL: "http://localhost:8001")
+    @StateObject private var eventUploader = EventUploader(baseURL: "http://192.168.0.77:8001")
+    
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
@@ -59,13 +63,19 @@ struct OnAirView: View {
                     }
                 }
                 .overlay(alignment: .topTrailing) {
-                    Text(String(format: "FPS: %.1f", visionService.fps))
-                        .font(.caption.monospaced())
-                        .foregroundColor(.green)
-                        .padding(6)
-                        .background(.black.opacity(0.6))
-                        .cornerRadius(4)
-                        .padding(8)
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text(String(format: "FPS: %.1f", visionService.fps))
+                            .font(.caption.monospaced())
+                            .foregroundColor(.green)
+                        
+                        if let packet = visionService.currentPacket {
+                            PacketDebugView(packet: packet)
+                        }
+                    }
+                    .padding(6)
+                    .background(.black.opacity(0.6))
+                    .cornerRadius(4)
+                    .padding(8)
                 }
                 
                 // 2. Image Strip (Thin)
@@ -158,6 +168,11 @@ struct OnAirView: View {
         .onAppear {
             visionService.startProcessing()
             visionService.refreshKnownDogs()
+            
+            // Retry any pending uploads from previous sessions
+            Task {
+                await eventUploader.retryPendingUploads()
+            }
         }
         .onDisappear {
             visionService.stopProcessing()
@@ -166,6 +181,7 @@ struct OnAirView: View {
     }
     
     private func toggleAnalysis() {
+        print("🔘 OnAirView: toggleAnalysis() called. isAnalyzing = \(isAnalyzing)")
         if isAnalyzing {
             stopAnalysis()
         } else {
@@ -174,55 +190,58 @@ struct OnAirView: View {
     }
     
     private func stopAnalysis() {
+        print("🛑 OnAirView: stopAnalysis() called")
         isAnalyzing = false
     }
     
     private func startAnalysisLoop() {
-        guard !isAnalyzing else { return }
+        guard !isAnalyzing else {
+            print("⚠️ OnAirView: Already analyzing, skipping")
+            return
+        }
+        print("▶️ OnAirView: startAnalysisLoop() - Setting isAnalyzing to true")
         isAnalyzing = true
         errorMessage = nil
         
         Task {
+            print("🔄 OnAirView: Task started, entering while loop")
             while isAnalyzing {
+                print("⚡️ OnAirView: Calling performAnalysisStep()")
                 await performAnalysisStep()
                 
                 if isAnalyzing {
                     // Wait for 1 second before next analysis to avoid rate limits
+                    print("⏳ OnAirView: Sleeping for 1 second...")
                     try? await Task.sleep(nanoseconds: 1 * 1_000_000_000)
                 }
             }
+            print("⏹️ OnAirView: Exited while loop")
         }
     }
     
     private func performAnalysisStep() async {
-        // Capture 5 frames (simulated from current frame history if possible, or just grab current)
-        // VisionService doesn't have a 'captureBurst' method exposed yet, but we can access cameraManager if needed
-        // OR better, we just grab the current frame history from VisionService if we add it.
-        // For now, let's just grab the current frame 5 times with delay or ask VisionService to do it.
-        // Since VisionService manages the camera, we should probably add a method there or expose cameraManager.
-        // Let's assume we can access cameraManager via VisionService for now as it's public in init but private property.
-        // Wait, it's private.
-        // Let's add a capture method to VisionService or make cameraManager public?
-        // Making cameraManager public is easiest for now to keep changes minimal.
-        // BUT, I can't change VisionService again in this step easily without another tool call.
-        // Let's check VisionService again. It has `currentFrame`.
-        // I'll implement a simple burst capture here using `currentFrame` and delays.
-        
         // Manual frame capture removed - VisionService now handles buffering
 
-        
         do {
             // Convert FetchedResults to Array for the async call
             let dogList = dogs.map { $0 }
             
+            print("🧠 OnAirView: Calling visionService.analyzeWithVLM")
             // Use VisionService to analyze with VLM (uses buffered frames)
             let (response, taggedImages, debugTurns) = try await visionService.analyzeWithVLM(
                 knownDogs: dogList
             )
+            print("✅ OnAirView: Analysis successful. Timestamp: \(response.timestamp)")
             
             await MainActor.run {
                 self.capturedImages = taggedImages // Update UI with tagged images
                 self.debugTurns = debugTurns // Update debug history
+                
+                // Add generated packet to EventUploader
+                if let packet = visionService.currentPacket {
+                    eventUploader.addPacket(packet)
+                }
+                
                 // Format VisionResponse to String for display
                 var formattedResult = "Time: \(response.timestamp)\n\n"
                 
@@ -258,6 +277,7 @@ struct OnAirView: View {
                 // I will comment out debugTurns for now.
             }
         } catch {
+            print("❌ OnAirView: Analysis failed: \(error)")
             await MainActor.run {
                 self.errorMessage = error.localizedDescription
             }
@@ -359,6 +379,30 @@ struct PromptDebugView: View {
         case "assistant": return .green
         default: return .gray
         }
+    }
+}
+
+struct PacketDebugView: View {
+    let packet: DeviceStatePacket
+    
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 2) {
+            Text("PKT: \(timeString(from: packet.timestamp))")
+            Text("DOGS: \(packet.dogs.count)")
+            Text("RELS: \(packet.relations?.count ?? 0)")
+            if let env = packet.environment {
+                Text("CROWD: \(env.crowding ?? 0)")
+            }
+            Text("SID: \(packet.sessionId.prefix(4))")
+        }
+        .font(.system(size: 10, design: .monospaced))
+        .foregroundColor(.white)
+    }
+    
+    private func timeString(from date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss.S"
+        return formatter.string(from: date)
     }
 }
 

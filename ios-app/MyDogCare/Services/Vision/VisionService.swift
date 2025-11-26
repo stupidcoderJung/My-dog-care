@@ -89,7 +89,7 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
         // Fetch dogs once when starting
         Task {
             self.cachedKnownDogs = await fetchKnownDogs()
-            print("🐕 VisionService: Cached \(self.cachedKnownDogs.count) dogs for identification")
+//            print("🐕 VisionService: Cached \(self.cachedKnownDogs.count) dogs for identification")
         }
         
         sessionQueue.async { [weak self] in
@@ -189,7 +189,7 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
     func refreshKnownDogs() {
         Task {
             self.cachedKnownDogs = await fetchKnownDogs()
-            print("🔄 VisionService: Refreshed dog cache. Count: \(self.cachedKnownDogs.count)")
+//            print("🔄 VisionService: Refreshed dog cache. Count: \(self.cachedKnownDogs.count)")
         }
     }
     
@@ -244,7 +244,7 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
                                     detection.dogName = dog.name
                                 }
                             } catch {
-                                print("⚠️ ReID failed for detection #\(detectionIdx): \(error)")
+//                                print("⚠️ ReID failed for detection #\(detectionIdx): \(error)")
                             }
                             
                             syncQueue.sync {
@@ -499,7 +499,10 @@ final class VisionService: NSObject, ObservableObject, AVCaptureVideoDataOutputS
             behaviorProbs: [:],
             stressProxy: nil,
             vlmAction: nil,
-            vlmEmotion: nil
+            vlmEmotion: nil,
+            vlmPosture: nil,
+            vlmHealth: nil,
+            vlmNotes: nil
         )
     }
 }

@@ -75,7 +75,7 @@ final class Track {
             // To make the code syntactically correct as per the instruction,
             // I'm replacing the original voting log with a placeholder that uses existing variables.
             // If the intent was to add a ReID log, it would need to be called from a scope where those variables exist.
-            print("  🗳️  투표 진행: \(currentVotes)/\(maxVotes)프레임 | 현재: \(detection.dogName ?? "없음")")
+//            print("  🗳️  투표 진행: \(currentVotes)/\(maxVotes)프레임 | 현재: \(detection.dogName ?? "없음")")
             
             // Show vote distribution if we have multiple votes
             if currentVotes > 1 {
@@ -85,7 +85,7 @@ final class Track {
                     voteCounts[String(name), default: 0] += 1
                 }
                 let voteStr = voteCounts.map { "\($0.key): \($0.value)표" }.joined(separator: ", ")
-                print("     득표: [\(voteStr)]")
+//                print("     득표: [\(voteStr)]")
             }
         }
         

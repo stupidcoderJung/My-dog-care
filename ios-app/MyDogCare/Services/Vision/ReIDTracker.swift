@@ -144,7 +144,7 @@ final class ReIDTracker {
         allCandidates.sort { $0.similarity > $1.similarity }
         
         guard let bestMatch = allCandidates.first else {
-            print("💔 ReID: No match found above threshold \(threshold)")
+//            print("💔 ReID: No match found above threshold \(threshold)")
             return nil
         }
         
@@ -153,7 +153,7 @@ final class ReIDTracker {
         if let runnerUp = allCandidates.first(where: { $0.dog.uuid != bestMatch.dog.uuid }) {
             let gap = bestMatch.similarity - runnerUp.similarity
             if gap < margin {
-                print("⚠️ ReID: Ambiguous! Best: \(bestMatch.dog.name ?? "?") (\(bestMatch.similarity)), 2nd: \(runnerUp.dog.name ?? "?") (\(runnerUp.similarity)). Gap \(gap) < \(margin)")
+//                print("⚠️ ReID: Ambiguous! Best: \(bestMatch.dog.name ?? "?") (\(bestMatch.similarity)), 2nd: \(runnerUp.dog.name ?? "?") (\(runnerUp.similarity)). Gap \(gap) < \(margin)")
                 return nil // Too close to call
             }
         }
@@ -164,7 +164,7 @@ final class ReIDTracker {
         let top3 = allCandidates.prefix(3)
         let voteCount = top3.filter { $0.dog.uuid == bestMatch.dog.uuid }.count
         
-        print("🎯 ReID: Match '\(bestMatch.dog.name ?? "Unknown")' (Sim: \(String(format: "%.3f", bestMatch.similarity)), Votes: \(voteCount)/\(top3.count))")
+//        print("🎯 ReID: Match '\(bestMatch.dog.name ?? "Unknown")' (Sim: \(String(format: "%.3f", bestMatch.similarity)), Votes: \(voteCount)/\(top3.count))")
         
         return bestMatch.dog.uuid
     }

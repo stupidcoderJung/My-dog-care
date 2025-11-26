@@ -80,7 +80,10 @@ class VLMStateMapper {
                 behaviorProbs: finalBehaviorProbs,
                 stressProxy: stressProxy,
                 vlmAction: dogAnalysis.action,
-                vlmEmotion: dogAnalysis.emotion
+                vlmEmotion: dogAnalysis.emotion,
+                vlmPosture: dogAnalysis.posture,
+                vlmHealth: dogAnalysis.health_signals.joined(separator: ", "),
+                vlmNotes: dogAnalysis.notes
             )
             
             dogStates.append(dogState)

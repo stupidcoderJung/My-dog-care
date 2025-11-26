@@ -1,0 +1,51 @@
+{
+  "repository_type": "multi-part",
+  "parts": [
+    {
+      "part_id": "ai-models",
+      "project_type_id": "data",
+      "root_path": "/ai-models",
+      "display_name": "AI Models",
+      "language": "Python",
+      "framework": "PyTorch/YOLO"
+    },
+    {
+      "part_id": "backend", 
+      "project_type_id": "backend",
+      "root_path": "/backend",
+      "display_name": "Backend API",
+      "language": "Python",
+      "framework": "FastAPI"
+    },
+    {
+      "part_id": "ios-app",
+      "project_type_id": "mobile", 
+      "root_path": "/ios-app",
+      "display_name": "iOS App",
+      "language": "Swift",
+      "framework": "SwiftUI"
+    },
+    {
+      "part_id": "mvp",
+      "project_type_id": "documentation",
+      "root_path": "/mvp", 
+      "display_name": "MVP Planning",
+      "language": "Markdown",
+      "framework": "N/A"
+    }
+  ],
+  "integration_points": [
+    {
+      "from": "ai-models",
+      "to": "ios-app", 
+      "type": "Model Deployment",
+      "details": "CoreML/ONNX models integrated into iOS app"
+    },
+    {
+      "from": "backend",
+      "to": "ios-app",
+      "type": "REST API",
+      "details": "FastAPI endpoints for data sync and AI services"
+    }
+  ]
+}

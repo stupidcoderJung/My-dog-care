@@ -30,6 +30,15 @@
 		A775EFC02ED2E1ED0030EDB3 /* ResNet50_ReID_Int8.mlmodel in Sources */ = {isa = PBXBuildFile; fileRef = A775EFBF2ED2E1ED0030EDB3 /* ResNet50_ReID_Int8.mlmodel */; };
 		A775EFC22ED3104A0030EDB3 /* VLMStateMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EFC12ED3104A0030EDB3 /* VLMStateMapper.swift */; };
 		A775EFC42ED310710030EDB3 /* DogState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EFC32ED310710030EDB3 /* DogState.swift */; };
+		A775EFE82ED4139A0030EDB3 /* PairState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EFE72ED4139A0030EDB3 /* PairState.swift */; };
+		A775EFE92ED4139A0030EDB3 /* DeviceStatePacket.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EFE52ED4139A0030EDB3 /* DeviceStatePacket.swift */; };
+		A775EFEA2ED4139A0030EDB3 /* EnvironmentState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EFE62ED4139A0030EDB3 /* EnvironmentState.swift */; };
+		A775EFED2ED413D40030EDB3 /* PairBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EFEB2ED413D40030EDB3 /* PairBuilder.swift */; };
+		A775EFEE2ED413D40030EDB3 /* StatePacketBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EFEC2ED413D40030EDB3 /* StatePacketBuilder.swift */; };
+		A775EFF32ED47D900030EDB3 /* Track.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EFF12ED47D900030EDB3 /* Track.swift */; };
+		A775EFF42ED47D900030EDB3 /* DeepSortTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EFEF2ED47D900030EDB3 /* DeepSortTracker.swift */; };
+		A775EFF52ED47D900030EDB3 /* KalmanFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EFF02ED47D900030EDB3 /* KalmanFilter.swift */; };
+		A775EFF92ED5237F0030EDB3 /* EventUploader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775EFF72ED5237F0030EDB3 /* EventUploader.swift */; };
 		A79FE2802EC604F40069D557 /* Clerk in Frameworks */ = {isa = PBXBuildFile; productRef = A79FE27F2EC604F40069D557 /* Clerk */; };
 		D2E0A7202C9D4D2600A1A1A1 /* MyDogCareApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A7102C9D4C5E00A1A1A1 /* MyDogCareApp.swift */; };
 		D2E0A7212C9D4D2600A1A1A1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E0A7112C9D4C5E00A1A1A1 /* ContentView.swift */; };
@@ -84,6 +93,15 @@
 		A775EFBF2ED2E1ED0030EDB3 /* ResNet50_ReID_Int8.mlmodel */ = {isa = PBXFileReference; lastKnownFileType = file.mlmodel; path = ResNet50_ReID_Int8.mlmodel; sourceTree = "<group>"; };
 		A775EFC12ED3104A0030EDB3 /* VLMStateMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VLMStateMapper.swift; sourceTree = "<group>"; };
 		A775EFC32ED310710030EDB3 /* DogState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DogState.swift; sourceTree = "<group>"; };
+		A775EFE52ED4139A0030EDB3 /* DeviceStatePacket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceStatePacket.swift; sourceTree = "<group>"; };
+		A775EFE62ED4139A0030EDB3 /* EnvironmentState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvironmentState.swift; sourceTree = "<group>"; };
+		A775EFE72ED4139A0030EDB3 /* PairState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairState.swift; sourceTree = "<group>"; };
+		A775EFEB2ED413D40030EDB3 /* PairBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairBuilder.swift; sourceTree = "<group>"; };
+		A775EFEC2ED413D40030EDB3 /* StatePacketBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatePacketBuilder.swift; sourceTree = "<group>"; };
+		A775EFEF2ED47D900030EDB3 /* DeepSortTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepSortTracker.swift; sourceTree = "<group>"; };
+		A775EFF02ED47D900030EDB3 /* KalmanFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KalmanFilter.swift; sourceTree = "<group>"; };
+		A775EFF12ED47D900030EDB3 /* Track.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Track.swift; sourceTree = "<group>"; };
+		A775EFF72ED5237F0030EDB3 /* EventUploader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventUploader.swift; sourceTree = "<group>"; };
 		B59485244961436191C9F1060CFA2E0E /* ModelRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelRegistry.swift; sourceTree = "<group>"; };
 		D2E0A7042C9D4C1200A1A1A1 /* MyDogCare.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyDogCare.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D2E0A7102C9D4C5E00A1A1A1 /* MyDogCareApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyDogCareApp.swift; sourceTree = "<group>"; };
@@ -127,11 +145,15 @@
 		A775EF8C2ED203400030EDB3 /* Vision */ = {
 			isa = PBXGroup;
 			children = (
+				A775EFF22ED47D900030EDB3 /* Tracking */,
+				A775EFEB2ED413D40030EDB3 /* PairBuilder.swift */,
+				A775EFEC2ED413D40030EDB3 /* StatePacketBuilder.swift */,
 				A775EF872ED203400030EDB3 /* ImageTagger.swift */,
 				A775EF882ED203400030EDB3 /* ReIDTracker.swift */,
 				A775EF892ED203400030EDB3 /* VisionService.swift */,
 				A775EF8A2ED203400030EDB3 /* VisionService+Verification.swift */,
 				A775EF8B2ED203400030EDB3 /* YOLOClient.swift */,
+				A775EFC12ED3104A0030EDB3 /* VLMStateMapper.swift */,
 			);
 			path = Vision;
 			sourceTree = "<group>";
@@ -151,6 +173,24 @@
 				A775EFB82ED20A860030EDB3 /* Models */,
 			);
 			path = Resources;
+			sourceTree = "<group>";
+		};
+		A775EFF22ED47D900030EDB3 /* Tracking */ = {
+			isa = PBXGroup;
+			children = (
+				A775EFEF2ED47D900030EDB3 /* DeepSortTracker.swift */,
+				A775EFF02ED47D900030EDB3 /* KalmanFilter.swift */,
+				A775EFF12ED47D900030EDB3 /* Track.swift */,
+			);
+			path = Tracking;
+			sourceTree = "<group>";
+		};
+		A775EFF82ED5237F0030EDB3 /* Network */ = {
+			isa = PBXGroup;
+			children = (
+				A775EFF72ED5237F0030EDB3 /* EventUploader.swift */,
+			);
+			path = Network;
 			sourceTree = "<group>";
 		};
 		D2E0A7012C9D4C1200A1A1A1 = {
@@ -217,7 +257,7 @@
 		D2E0A72D2C9D4D8300A1A1A1 /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				A775EFC12ED3104A0030EDB3 /* VLMStateMapper.swift */,
+				A775EFF82ED5237F0030EDB3 /* Network */,
 				A775EF8C2ED203400030EDB3 /* Vision */,
 				A775EF6E2ED07C4B0030EDB3 /* ChatService.swift */,
 				A775EF682ED0385A0030EDB3 /* CameraManager.swift */,
@@ -231,6 +271,9 @@
 		D2E0A72E2C9D4D8300A1A1A1 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				A775EFE52ED4139A0030EDB3 /* DeviceStatePacket.swift */,
+				A775EFE62ED4139A0030EDB3 /* EnvironmentState.swift */,
+				A775EFE72ED4139A0030EDB3 /* PairState.swift */,
 				A775EFC32ED310710030EDB3 /* DogState.swift */,
 				A775EF922ED203850030EDB3 /* DetectedObject.swift */,
 				A775EF932ED203850030EDB3 /* Dog.swift */,
@@ -317,9 +360,15 @@
 				A775EF6D2ED07C330030EDB3 /* ChatView.swift in Sources */,
 				A775EF762ED124170030EDB3 /* AddCareEventSheet.swift in Sources */,
 				A775EFBA2ED20A860030EDB3 /* yolo11n.mlpackage in Sources */,
+				A775EFED2ED413D40030EDB3 /* PairBuilder.swift in Sources */,
+				A775EFEE2ED413D40030EDB3 /* StatePacketBuilder.swift in Sources */,
 				A775EF772ED124170030EDB3 /* CareCalendarView.swift in Sources */,
 				D2E0A7202C9D4D2600A1A1A1 /* MyDogCareApp.swift in Sources */,
 				D2E0A7212C9D4D2600A1A1A1 /* ContentView.swift in Sources */,
+				A775EFF32ED47D900030EDB3 /* Track.swift in Sources */,
+				A775EFF42ED47D900030EDB3 /* DeepSortTracker.swift in Sources */,
+				A775EFF52ED47D900030EDB3 /* KalmanFilter.swift in Sources */,
+				A775EFF92ED5237F0030EDB3 /* EventUploader.swift in Sources */,
 				A775EF942ED203850030EDB3 /* DetectedObject.swift in Sources */,
 				A775EF952ED203850030EDB3 /* Dog.swift in Sources */,
 				A775EF732ED07CD70030EDB3 /* GraphWebView.swift in Sources */,
@@ -344,6 +393,9 @@
 				5FD3C2AB2F1C123400FEDCBA /* DogDetailView.swift in Sources */,
 				A775EF6F2ED07C4B0030EDB3 /* ChatService.swift in Sources */,
 				D2E0A7352C9D569B00A1A1A1 /* AddDogView.swift in Sources */,
+				A775EFE82ED4139A0030EDB3 /* PairState.swift in Sources */,
+				A775EFE92ED4139A0030EDB3 /* DeviceStatePacket.swift in Sources */,
+				A775EFEA2ED4139A0030EDB3 /* EnvironmentState.swift in Sources */,
 				D2E0A7362C9D569B00A1A1A1 /* ImagePicker.swift in Sources */,
 				D2E0A7392C9D5F5200A1A1A1 /* PersistenceController.swift in Sources */,
 				D2E0A73A2C9D5F5200A1A1A1 /* DogPhotoStore.swift in Sources */,

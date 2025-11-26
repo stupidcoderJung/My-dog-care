@@ -1,0 +1,12 @@
+installation:
+  version: 6.0.0-alpha.12
+  installDate: '2025-11-26T13:48:54.183Z'
+  lastUpdated: '2025-11-26T13:48:54.183Z'
+modules:
+  - core
+  - bmb
+  - bmm
+  - cis
+ides:
+  - codex
+  - opencode

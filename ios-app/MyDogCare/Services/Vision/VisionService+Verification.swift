@@ -18,10 +18,10 @@ extension VisionService {
         
         guard let buffer = pixelBuffer else { return }
         
-        visionService.processFrame(buffer, knownDogs: knownDogs) { detections in
-            print("Detected \(detections.count) dogs:")
+        visionService.processFrame(buffer, timestamp: Date(), knownDogs: knownDogs) { detections, _ in
+//            print("Detected \(detections.count) dogs:")
             for detection in detections {
-                print("  - \(detection.dogName ?? "Unknown") (confidence: \(detection.confidence))")
+//                print("  - \(detection.dogName ?? "Unknown") (confidence: \(detection.confidence))")
             }
         }
     }

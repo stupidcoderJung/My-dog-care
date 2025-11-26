@@ -28,4 +28,7 @@ struct DogState: Codable, Identifiable {
     // Raw VLM Data (Optional, for debugging or rich display)
     var vlmAction: String?
     var vlmEmotion: String?
+    var vlmPosture: String?
+    var vlmHealth: String?
+    var vlmNotes: String?
 }

@@ -57,9 +57,10 @@ Results are logged and uploaded to backend for training data collection (~10k sa
 - **`DeepSortTracker`**: Two-phase tracking (IoU → ReID → Update)
 - **`KalmanFilter`**: Motion prediction for smooth tracking
 - **`Track`**: Individual track state management with temporal voting
-- `StateBuilder`: Convert detections to `DogState`
-- `PairBuilder`: Generate pair-wise relationships
-- `EventUploader`: Batch upload to backend
+- `VisionClient`: VLM-based behavior analysis
+- `VLMStateMapper`: Maps VLM text response to structured `DogState`
+- `StatePacketBuilder`: Aggregates states into `DeviceStatePacket`
+- `EventUploader`: Buffers and uploads packets to backend (with offline support)
 
 ## Tech Stack
 - Swift 5.9+

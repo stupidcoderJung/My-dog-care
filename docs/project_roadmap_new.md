@@ -48,7 +48,7 @@
   - embedding: [Float]?
   - dogId: UUID? — 확정된 강아지 신원
   - dogName: String? — 강아지 이름
-- [ ] **DogState** (DogState.swift)
+- [x] **DogState** (DogState.swift)
   - tempTrackId: Int
   - dogId: UUID?
   - bboxNorm: BBoxNorm — cx, cy, w, h (0~1)
@@ -56,16 +56,16 @@
   - directionRad: Float?
   - behaviorProbs: [String: Float]
   - stressProxy: Float?
-- [ ] **PairState** (PairState.swift)
+- [x] **PairState** (PairState.swift)
   - dogIId, dogJId: UUID (i < j 규칙)
   - distanceNorm: Float
   - relativeAngle: Float?
   - affinityScore, tensionScore: Float?
   - interactionTags: [String]
-- [ ] **EnvironmentState** (EnvironmentState.swift)
+- [x] **EnvironmentState** (EnvironmentState.swift)
   - lux, decibel: Float?
   - crowding: Int?
-- [ ] **DeviceStatePacket** (DeviceStatePacket.swift)
+- [x] **DeviceStatePacket** (DeviceStatePacket.swift)
   - timestamp: Date (UTC)
   - deviceId, sessionId: String
   - fps: Float?
@@ -146,7 +146,7 @@
   - Korean logging for debugging
 
 ### 2-5. Reference Data Management (Views/DogProfile/)
-- [ ] **AddDogView 확장**
+- [x] **AddDogView 확장**
   - "AI 인식용 사진 등록(3~5장)" UI 추가
   - 각 사진에서 강아지 영역 Crop
   - ReID 모델로 임베딩 추출
@@ -164,7 +164,7 @@
     - Camera → **YOLO 감지** → **ReID 식별** → 태깅된 이미지 → 5 프레임 → VLM
   - VLM 출력: `VisionResponse` (posture, action, emotion, health_signals)
 
-- [ ] **VLM → DogState 매핑** (Services/Vision/VLMStateMapper.swift)
+- [x] **VLM → DogState 매핑** (Services/Vision/VLMStateMapper.swift)
   - VLM의 `action` → `behaviorProbs` 변환
     - 예: action="play" → {"play": 1.0, "rest": 0.0}
   - VLM의 `emotion` → `stressProxy` 변환 (규칙 기반)
@@ -172,7 +172,7 @@
     - emotion="anxious" → stressProxy=0.8
   - VLM의 `posture` → 추가 컨텍스트로 활용
 
-- [ ] **State Builder** (Services/Vision/StateBuilder.swift)
+- [x] **State Builder** (Services/Vision/StatePacketBuilder.swift)
   - YOLO bbox → bboxNorm 계산
   - 이전 프레임 대비 speedPx, directionRad 계산
   - VLM 매핑 결과를 DogState에 통합:
@@ -186,21 +186,21 @@
     )
     ```
 
-- [ ] **Pair Builder** (Services/Vision/PairBuilder.swift)
+- [x] **Pair Builder** (Services/Vision/PairBuilder.swift)
   - DogState 조합 → PairState 생성
   - distanceNorm, relativeAngle 계산
   - (초기) affinity/tension은 null 또는 기본값
 
-- [ ] **Environment Sampler** (Services/Vision/EnvSampler.swift)
+- [x] **Environment Sampler** (Services/Vision/EnvironmentState.swift)
   - lux, decibel, crowding 추정
 
-- [ ] **Complete DeviceStatePacket** (OnAirViewModel)
+- [x] **Complete DeviceStatePacket** (Services/Vision/StatePacketBuilder.swift)
   - 1초마다 완전한 DeviceStatePacket 생성:
     - dogs: [DogState] (VLM 기반 behavior/stress 포함)
     - relations: [PairState]
     - environment: EnvironmentState
 
-- [ ] **Event Uploader** (Services/Network/EventUploader.swift)
+- [x] **Event Uploader** (Services/Network/EventUploader.swift)
   - Batch Upload: 10초마다 `POST /events/batch`
   - **중요**: 이 시점에 백엔드로 전송되는 패킷은 VLM 기반이지만, 온디바이스 모델과 **동일한 스키마**
 
@@ -296,26 +296,25 @@
 
 ### 2-1. Server Setup (backend/)
 - [ ] **FastAPI 프로젝트 초기화**
-  - `poetry init` & deps: fastapi, uvicorn, sqlalchemy, asyncpg, alembic
-- [ ] **Docker Compose**
-  - timescaledb, redis, milvus, minio, pgadmin
+  - `poetry init` & deps: fastapi, uvicorn, duckdb, pydantic-settings
+- [ ] **DuckDB Setup**
+  - `dog_care.duckdb` 파일 기반 DB
+  - OLAP 최적화, JSON 지원, 표준 SQL (LLM 친화적)
 
-### 2-2. Database Schema (backend/models.py + alembic/)
+### 2-2. Database Schema (backend/schema.sql)
 - [ ] **dogs** (Profile)
   - id, owner_id, name, breed, birthdate, sex, weight_kg, profile_photo_url
-- [ ] **dog_states** (Hypertable)
-  - t, device_id, session_id, dog_id, temp_track_id
+- [ ] **dog_states** (Time-Series)
+  - t (TIMESTAMP), device_id, session_id, dog_id
   - bbox_cx, bbox_cy, bbox_w, bbox_h
   - speed_px, direction_rad
-  - behavior_probs (JSONB), dominant_action, stress_proxy
+  - behavior_probs (JSON), dominant_action, stress_proxy
   - environment_lux, environment_db
-  - Timescale: `create_hypertable('dog_states', 't')`
-  - 인덱스: (dog_id, t DESC), (device_id, t DESC)
-- [ ] **pair_relations** (Hypertable)
+- [ ] **pair_relations** (Time-Series)
   - t, device_id, session_id
-  - dog_i_id, dog_j_id (i < j)
+  - dog_i_id, dog_j_id
   - distance_norm, relative_angle, affinity, tension
-  - interaction_tags (TEXT[])
+  - interaction_tags (LIST)
 - [ ] **risk_events**
   - risk_id, device_id, session_id
   - t_start, t_end, target_type, target_ids

@@ -1,120 +1,88 @@
-# Backend - MyDogCare Server
+# MyDogCare Backend (MVP)
 
-FastAPI-based backend for storing time-series data, managing clips, and running the LLM agent.
+FastAPI + DuckDB 기반의 경량화된 고성능 백엔드입니다.
+iOS 앱에서 전송되는 강아지 행동 데이터를 저장하고, LLM을 통해 자연어로 질의할 수 있습니다.
 
-## Architecture
+## 🏗️ Architecture
 
-### Data Layer
-- **TimescaleDB**: Time-series storage
-  - `dog_states` (Hypertable): Per-dog states every second
-  - `pair_relations` (Hypertable): Pair-wise relationships
-  - `risk_events`: Detected risk incidents
-  - `clips`: Video evidence metadata
-  
-- **Milvus (Vector DB)**: Semantic search for clips
-- **MinIO/S3**: Video clip storage
-- **Redis**: Caching and session management
+- **Web Framework**: FastAPI (Async, Auto Docs)
+- **Database**: DuckDB (Embedded OLAP, High Performance, SQL Standard)
+- **AI Integration**: Qwen Agent + NVIDIA API (Tool Calling for SQL Execution)
+  - Model: `qwen/qwen3-next-80b-a3b-thinking`
+  - 무료 NVIDIA API 사용 (비용 걱정 없음!)
 
-### API Layer
-- **FastAPI**: High-performance async API
-  - `POST /dogs`: Dog profile sync
-  - `POST /events/batch`: Bulk state ingestion
-  - `POST /clips`: Video upload
-  - `GET /analytics/*`: Time-series queries
-  - `POST /chat`: LLM agent interface
 
-### Intelligence Layer
-- **LLM Agent**: Multi-expert analyst
-  - **Planner**: Parse user query into execution plan
-  - **Analyzer (Data)**: SQL aggregations and anomaly detection
-  - **Analyzer (Expert)**: Veterinary/behavioral interpretation
-  - **Presenter**: Generate summaries, charts (Chart.js spec), evidence cards
+## 🚀 Features
 
-- **VLM Worker** (Gemini 2.5 Pro):
-  - Hard example mining
-  - Structured annotation generation
-  - Training data accumulation
+1.  **Event Ingestion**: `POST /events/batch`
+    - iOS `DeviceStatePacket` 대량 수신 및 고속 저장
+2.  **Dog Management**: `POST /dogs`, `GET /dogs`
+    - 강아지 프로필 관리 및 동기화
+3.  **AI Chat**: `POST /chat`
+    - "오늘 버디가 얼마나 놀았어?" -> SQL 변환 -> 결과 분석 -> 답변
 
-## Setup
+## 🛠️ Setup (using uv)
 
-### Prerequisites
-- Python 3.11+
-- Docker & Docker Compose
-- Poetry
-
-### Installation
 ```bash
-# Install dependencies
-poetry install
+# 1. 의존성 설치 (uv가 자동으로 venv 생성 및 패키지 설치)
+cd backend
+uv sync
 
-# Start databases
-docker-compose up -d
+# 2. 서버 실행
+uv run uvicorn main:app --host 0.0.0.0 --port 8001 --reload
 
-# Run migrations
-poetry run alembic upgrade head
-
-# Start server
-poetry run uvicorn main:app --reload
+# 접속: http://localhost:8001
+# API 문서: http://localhost:8001/docs
 ```
 
-### Environment Variables
-Create `.env` file:
+**참고:** NVIDIA API Key는 `config.py`에 하드코딩되어 있습니다. (무료 사용 가능)
+
+
+## 📁 Directory Structure
+
 ```
-DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/mydogcare
-MILVUS_HOST=localhost
-MILVUS_PORT=19530
-MINIO_ENDPOINT=localhost:9000
-MINIO_ACCESS_KEY=minioadmin
-MINIO_SECRET_KEY=minioadmin
-GEMINI_API_KEY=your_api_key
+backend/
+├── main.py             # App Entrypoint
+├── db.py               # DuckDB Connection & Init
+├── config.py           # Settings
+├── schemas.py          # Pydantic Models
+├── routers/
+│   ├── events.py       # Event Ingestion API
+│   ├── dogs.py         # Dog Profile API
+│   └── chat.py         # LLM Chat API
+└── data/
+    └── dog_care.duckdb # Database File
 ```
 
-## Database Schema
+## 💬 Usage Examples
 
-### dog_states (Hypertable)
-- `t` (timestamptz): Timestamp
-- `dog_id` (uuid): Dog UUID
-- `bbox_cx`, `bbox_cy`, `bbox_w`, `bbox_h` (real): Normalized bbox
-- `speed_px` (real): Speed in px/s
-- `behavior_probs` (jsonb): Action probabilities
-- `stress_proxy` (real): Stress estimate
-- `environment_lux`, `environment_db` (real): Sensors
+### 1. iOS 앱에서 데이터 전송
+iOS 앱의 `EventUploader`를 `http://<your-ip>:8001`로 설정하면 자동으로 데이터가 쌓입니다.
 
-### pair_relations (Hypertable)
-- `t` (timestamptz): Timestamp
-- `dog_i_id`, `dog_j_id` (uuid): Dog pair (i < j)
-- `distance_norm` (real): Normalized distance
-- `affinity`, `tension` (real): Relationship scores
-- `interaction_tags` (text[]): Interaction types
+### 2. LLM 채팅 테스트
 
-## API Endpoints
+```bash
+# 테이블 확인
+curl -L -X POST http://localhost:8001/chat/ \
+  -H "Content-Type: application/json" \
+  -d '{"query": "데이터베이스에 어떤 테이블이 있어?"}' | jq
 
-### Dog Management
-- `POST /dogs`: Upload dog profile with photo
-- `GET /dogs`: Retrieve user's dogs
+# 강아지 수 확인
+curl -L -X POST http://localhost:8001/chat/ \
+  -H "Content-Type: application/json" \
+  -d '{"query": "등록된 강아지가 몇 마리야?"}' | jq
 
-### Event Ingestion
-- `POST /events/batch`: Bulk insert `DeviceStatePacket`s
+# 시계열 데이터 쿼리
+curl -L -X POST http://localhost:8001/chat/ \
+  -H "Content-Type: application/json" \
+  -d '{"query": "최근 1시간 동안 기록된 행동 데이터는 몇 개야?"}' | jq
+```
 
-### Analytics
-- `GET /analytics/dog_timeseries?dog_id=...&metric=...`: Time-series data
-- `GET /analytics/pair_timeseries?dog_i_id=...&dog_j_id=...`: Pair metrics
-- `GET /analytics/risk_peaks?target=...`: Risk incidents
+**백엔드 로그에서 LLM이 생성한 SQL과 실행 결과를 실시간으로 확인할 수 있습니다!**
 
-### Clips
-- `POST /clips`: Upload video clip
-- `GET /clips/search?query=...`: Semantic search
+```
+INFO:routers.chat:🔧 Tool Call: execute_sql_query
+INFO:routers.chat:📝 SQL Query: SELECT COUNT(*) FROM dog_states WHERE t > now() - INTERVAL '1 hour';
+INFO:routers.chat:✅ Rows returned: 1
+```
 
-### Chat
-- `POST /chat`: Ask LLM agent with evidence retrieval
-
-## Tech Stack
-- FastAPI
-- SQLAlchemy (async)
-- asyncpg
-- TimescaleDB
-- Milvus
-- MinIO
-- Redis
-- Pydantic
-- Alembic

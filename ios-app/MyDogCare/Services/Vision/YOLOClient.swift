@@ -25,8 +25,8 @@ enum YOLOClientError: Error, LocalizedError {
 
 final class YOLOClient {
     private enum Constants {
-        static let confidenceThreshold: Float = 0.01 // Lowered for debugging
-        static let allowedLabels: Set<String> = ["dog","cat"]
+        static let confidenceThreshold: Float = 0.0001 // Lowered for debugging
+        static let allowedLabels: Set<String> = ["dog"]
         static let queueLabel = "com.mydogcare.yolo-client"
     }
 
@@ -106,7 +106,7 @@ private extension YOLOClient {
 
         return observations.compactMap { observation in
             guard let topLabel = observation.labels.first else { return nil }
-            print("YOLOClient: Observation label: \(topLabel.identifier), confidence: \(topLabel.confidence)")
+//            print("YOLOClient: Observation label: \(topLabel.identifier), confidence: \(topLabel.confidence)")
             
             guard topLabel.confidence > confidenceThreshold
             else {

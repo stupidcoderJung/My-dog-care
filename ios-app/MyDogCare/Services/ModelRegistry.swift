@@ -32,6 +32,7 @@ struct VisionEnvironment: Codable {
 
 @MainActor
 final class VisionClient: ObservableObject {
+//    private let baseURL = URL(string: "http://192.168.0.77:8080/v1/chat/completions")!
     private let baseURL = URL(string: "http://192.168.0.77:8080/v1/chat/completions")!
     
     func analyzeImage(image: UIImage, name: String, breed: String) async throws -> String {
