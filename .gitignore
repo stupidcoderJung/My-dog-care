@@ -41,3 +41,6 @@ MyDogCare/*.gguf
 # ML model files
 *.mlmodel
 ios-app/Resources/Models/*.mlmodel
+ios-app/MyDogCare/Resources/Models/*.mlmodel
+ai-models/*.mlmodel
+**/*.mlpackage
