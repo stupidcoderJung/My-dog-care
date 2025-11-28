@@ -37,4 +37,7 @@ models/mmproj-SmolVLM-500M-Instruct-Q8_0.gguf
 models/SmolVLM-500M-Instruct-Q8_0.gguf
 MyDogCare/*.gguf
 *.gguf
-*.gguf
+
+# ML model files
+*.mlmodel
+ios-app/Resources/Models/*.mlmodel
